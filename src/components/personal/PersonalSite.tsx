@@ -140,9 +140,12 @@ function Portrait() {
     );
 }
 
-// "2026-10-20" → "20 Oct 2026", fixed to UTC so server and browser render the same text.
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+// "2026-10-20" → "20 Oct 2026". Formatted by hand so server and browser always render the same text.
 function formatDate(iso: string) {
-    return new Date(`${iso}T00:00:00Z`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
+    const [year, month, day] = iso.split('-').map(Number);
+    return `${day} ${MONTHS[month - 1]} ${year}`;
 }
 
 function SectionLabel({ index, children }: { index: string; children: React.ReactNode }) {
@@ -369,7 +372,7 @@ export default function PersonalSite() {
                     {profile.newsletter.issues.length > 0 && (
                         <ul className={styles.issues}>
                             {profile.newsletter.issues.map((issue) => (
-                                <li key={issue.url} className={styles.reveal}>
+                                <li key={issue.date + issue.title} className={styles.reveal}>
                                     <a href={issue.url} target="_blank" rel="noreferrer" data-cursor="Read">
                                         <time dateTime={issue.date}>{formatDate(issue.date)}</time>
                                         <span className={styles.issueMain}>

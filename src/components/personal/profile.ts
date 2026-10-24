@@ -180,7 +180,23 @@ export const profile = {
         url: 'https://www.linkedin.com/newsletters/make-people-great-again-7392191024183296001/',
         // Editions shown on the site, newest first. To add one, copy a block and change its fields:
         // { title: '…', date: '2026-10-20', summary: 'One sentence.', url: 'https://www.linkedin.com/pulse/…' },
-        issues: [] as Issue[]
+        issues: [
+            {
+                title: 'Não tenho carro há seis anos. Não é virtude, é código postal.',
+                date: '2026-10-13',
+                url: 'https://www.linkedin.com/newsletters/make-people-great-again-7392191024183296001/'
+            },
+            {
+                title: 'Portugal é o oitavo melhor país para viver. E o último para trabalhar.',
+                date: '2026-09-01',
+                url: 'https://www.linkedin.com/newsletters/make-people-great-again-7392191024183296001/'
+            },
+            {
+                title: 'Ninguém te ensinou a fazer o luto de uma profissão',
+                date: '2026-05-25',
+                url: 'https://www.linkedin.com/pulse/ningu%C3%A9m-te-ensinou-fazer-o-luto-de-uma-profiss%C3%A3o-nuno-silva-xmmqe/'
+            }
+        ] as Issue[]
     },
     quote: 'There is no wave separated from the ocean. The wave IS the ocean.',
     // Contact form options. The chosen option sets the subject of the email sent by /api/contact.
