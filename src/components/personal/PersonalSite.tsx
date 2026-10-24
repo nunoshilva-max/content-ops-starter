@@ -140,6 +140,14 @@ function Portrait() {
     );
 }
 
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+// "2026-10-20" → "20 Oct 2026". Formatted by hand so server and browser always render the same text.
+function formatDate(iso: string) {
+    const [year, month, day] = iso.split('-').map(Number);
+    return `${day} ${MONTHS[month - 1]} ${year}`;
+}
+
 function SectionLabel({ index, children }: { index: string; children: React.ReactNode }) {
     return (
         <p className={styles.label}>
@@ -352,10 +360,33 @@ export default function PersonalSite() {
 
                 <section className={`${styles.section} ${styles.writing}`}>
                     <SectionLabel index="06">Writing</SectionLabel>
-                    <div className={styles.reveal}>
-                        <h2>{profile.newsletter.name}</h2>
-                        <p>{profile.newsletter.text}</p>
+                    <div className={`${styles.writingHead} ${styles.reveal}`}>
+                        <div>
+                            <h2>{profile.newsletter.name}</h2>
+                            <p>{profile.newsletter.text}</p>
+                        </div>
+                        <a href={profile.newsletter.url} target="_blank" rel="noreferrer" className={styles.subscribe} data-cursor="Subscribe">
+                            Subscribe on LinkedIn <span aria-hidden="true">↗</span>
+                        </a>
                     </div>
+                    {profile.newsletter.issues.length > 0 && (
+                        <ul className={styles.issues}>
+                            {profile.newsletter.issues.map((issue) => (
+                                <li key={issue.date + issue.title} className={styles.reveal}>
+                                    <a href={issue.url} target="_blank" rel="noreferrer" data-cursor="Read">
+                                        <time dateTime={issue.date}>{formatDate(issue.date)}</time>
+                                        <span className={styles.issueMain}>
+                                            <strong>{issue.title}</strong>
+                                            {issue.summary && <span>{issue.summary}</span>}
+                                        </span>
+                                        <span className={styles.issueArrow} aria-hidden="true">
+                                            ↗
+                                        </span>
+                                    </a>
+                                </li>
+                            ))}
+                        </ul>
+                    )}
                     <blockquote className={styles.reveal}>“{profile.quote}”</blockquote>
                 </section>
             </main>

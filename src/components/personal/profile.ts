@@ -8,6 +8,14 @@ export type Experience = {
     description: string;
 };
 
+export type Issue = {
+    title: string;
+    // ISO date (YYYY-MM-DD)
+    date: string;
+    summary?: string;
+    url: string;
+};
+
 export type Work = {
     client: string;
     title: string;
@@ -168,7 +176,27 @@ export const profile = {
     languages: ['Portuguese', 'English', 'Spanish'],
     newsletter: {
         name: 'MPGA — Make People Great Again',
-        text: 'A newsletter on leadership, culture and the place of people in an increasingly automated world.'
+        text: 'A weekly newsletter on leadership, culture and the place of people in an increasingly automated world.',
+        url: 'https://www.linkedin.com/newsletters/make-people-great-again-7392191024183296001/',
+        // Editions shown on the site, newest first. To add one, copy a block and change its fields:
+        // { title: '…', date: '2026-10-20', summary: 'One sentence.', url: 'https://www.linkedin.com/pulse/…' },
+        issues: [
+            {
+                title: 'Não tenho carro há seis anos. Não é virtude, é código postal.',
+                date: '2026-10-13',
+                url: 'https://www.linkedin.com/pulse/n%C3%A3o-tenho-carro-h%C3%A1-seis-anos-%C3%A9-virtude-c%C3%B3digo-postal-nuno-silva-zmfpe/'
+            },
+            {
+                title: 'Portugal é o oitavo melhor país para viver. E o último para trabalhar.',
+                date: '2026-09-01',
+                url: 'https://www.linkedin.com/pulse/portugal-%C3%A9-o-oitavo-melhor-pa%C3%ADs-para-viver-e-%C3%BAltimo-trabalhar-silva-mnwue/'
+            },
+            {
+                title: 'Ninguém te ensinou a fazer o luto de uma profissão',
+                date: '2026-05-25',
+                url: 'https://www.linkedin.com/pulse/ningu%C3%A9m-te-ensinou-fazer-o-luto-de-uma-profiss%C3%A3o-nuno-silva-xmmqe/'
+            }
+        ] as Issue[]
     },
     quote: 'There is no wave separated from the ocean. The wave IS the ocean.',
     // Contact form options. The chosen option sets the subject of the email sent by /api/contact.
