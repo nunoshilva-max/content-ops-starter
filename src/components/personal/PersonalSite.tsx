@@ -59,18 +59,84 @@ function useReveal() {
 }
 
 // Project image loaded from the web: tries the fallback URL once, then hides itself so the gradient shows.
+// YouTube answers a missing maxresdefault with a 120×90 grey placeholder (not an error), so treat tiny images as failures too.
 function WorkImage({ src, fallback, alt }: { src: string; fallback?: string; alt: string }) {
     const [current, setCurrent] = React.useState(src);
     const [failed, setFailed] = React.useState(false);
+    const imgRef = React.useRef<HTMLImageElement>(null);
+    const fail = React.useCallback(() => {
+        if (fallback && current !== fallback) setCurrent(fallback);
+        else setFailed(true);
+    }, [current, fallback]);
+    const check = React.useCallback(() => {
+        const img = imgRef.current;
+        if (img?.complete && img.naturalWidth <= 120) fail();
+    }, [fail]);
+    // The image may finish loading before React hydrates, when onLoad/onError never fire.
+    React.useEffect(check, [check]);
     if (failed) return null;
     return (
         <img
+            ref={imgRef}
             src={current}
             alt={alt}
             loading="lazy"
-            className={styles.workImage}
-            onError={() => (fallback && current !== fallback ? setCurrent(fallback) : setFailed(true))}
+            // YouTube's always-available hqdefault is 4:3 with black bars; zoom in to crop them.
+            className={current.includes('/hqdefault') ? `${styles.workImage} ${styles.workImageLetterbox}` : styles.workImage}
+            onLoad={check}
+            onError={fail}
         />
+    );
+}
+
+// Lightweight YouTube embed: shows the thumbnail with a play button and only loads the player on click.
+function YouTubeEmbed({ id, title, children }: { id: string; title: string; children: React.ReactNode }) {
+    const [playing, setPlaying] = React.useState(false);
+    if (playing) {
+        return (
+            <div className={`${styles.workArt} ${styles.workArtPlaying}`}>
+                <iframe
+                    src={`https://www.youtube-nocookie.com/embed/${id}?autoplay=1&rel=0&playsinline=1`}
+                    title={title}
+                    allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+                    allowFullScreen
+                />
+            </div>
+        );
+    }
+    return (
+        <button type="button" className={styles.workArt} onClick={() => setPlaying(true)} aria-label={`Play ${title}`} data-cursor="Play">
+            {children}
+            <span className={styles.playIcon} aria-hidden="true" />
+        </button>
+    );
+}
+
+// Round portrait with the name and role circling it.
+function Portrait() {
+    const [failed, setFailed] = React.useState(false);
+    const imgRef = React.useRef<HTMLImageElement>(null);
+    // The image can fail before React hydrates, when onError never fires; check on mount too.
+    React.useEffect(() => {
+        const img = imgRef.current;
+        if (img?.complete && img.naturalWidth === 0) setFailed(true);
+    }, []);
+    if (failed) return null;
+    const ring = `${profile.name} · ${profile.role} · ${profile.location} · `;
+    return (
+        <figure className={`${styles.portrait} ${styles.reveal}`}>
+            <svg className={styles.portraitRing} viewBox="0 0 200 200" aria-hidden="true">
+                <defs>
+                    <path id="portrait-ring" d="M100,100 m-88,0 a88,88 0 1,1 176,0 a88,88 0 1,1 -176,0" />
+                </defs>
+                <text>
+                    <textPath href="#portrait-ring" textLength="548">
+                        {ring}
+                    </textPath>
+                </text>
+            </svg>
+            <img ref={imgRef} src={profile.photo} alt={profile.name} className={styles.portraitPhoto} onError={() => setFailed(true)} />
+        </figure>
     );
 }
 
@@ -98,6 +164,9 @@ export default function PersonalSite() {
                 <meta property="og:url" content={`https://${profile.domain}`} />
                 <meta name="viewport" content="width=device-width, initial-scale=1" />
                 <meta name="theme-color" content="#07070a" />
+                <link rel="icon" href="/favicon-nuno.svg" type="image/svg+xml" />
+                <link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png" />
+                <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
                 <link rel="preconnect" href="https://fonts.googleapis.com" />
                 <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
                 <link
@@ -155,9 +224,12 @@ export default function PersonalSite() {
 
                 <section id="about" className={styles.section}>
                     <SectionLabel index="01">About</SectionLabel>
-                    <h2 className={`${styles.statement} ${styles.reveal}`}>
-                        I make sure what agencies <em>promise</em> is what clients <em>get.</em>
-                    </h2>
+                    <div className={styles.aboutHead}>
+                        <h2 className={`${styles.statement} ${styles.reveal}`}>
+                            I make sure what agencies <em>promise</em> is what clients <em>get.</em>
+                        </h2>
+                        <Portrait />
+                    </div>
                     <div className={`${styles.aboutGrid} ${styles.reveal}`}>
                         {profile.about.map((paragraph) => (
                             <p key={paragraph.slice(0, 24)}>{paragraph}</p>
@@ -176,36 +248,48 @@ export default function PersonalSite() {
                 <section id="work" className={styles.section}>
                     <SectionLabel index="02">Work I’m proud of</SectionLabel>
                     <div className={styles.work}>
-                        {profile.work.map((item, i) => (
-                            <a
-                                key={item.title}
-                                href={item.url}
-                                target="_blank"
-                                rel="noreferrer"
-                                className={`${styles.workCard} ${styles.reveal}`}
-                                style={{ '--hue': item.hue } as React.CSSProperties}
-                                data-cursor="View"
-                            >
-                                <div className={styles.workArt}>
-                                    {item.image && <WorkImage src={item.image} fallback={item.imageFallback} alt={`${item.client} — ${item.title}`} />}
-                                    <span className={styles.workIndex} aria-hidden="true">
-                                        {String(i + 1).padStart(2, '0')}
-                                    </span>
-                                </div>
-                                <div className={styles.workMeta}>
-                                    <p className={styles.workClient}>
-                                        {item.client} <span>{item.year}</span>
-                                    </p>
-                                    <h3>{item.title}</h3>
-                                    <ul>
-                                        {item.stats.map((stat) => (
-                                            <li key={stat}>{stat}</li>
-                                        ))}
-                                    </ul>
-                                    {item.award && <p className={styles.award}>{item.award}</p>}
-                                </div>
-                            </a>
-                        ))}
+                        {profile.work.map((item, i) => {
+                            const index = (
+                                <span className={styles.workIndex} aria-hidden="true">
+                                    {String(i + 1).padStart(2, '0')}
+                                </span>
+                            );
+                            const image = item.image && <WorkImage src={item.image} fallback={item.imageFallback} alt={`${item.client} — ${item.title}`} />;
+                            return (
+                                <article
+                                    key={item.title}
+                                    className={`${styles.workCard} ${styles.reveal}`}
+                                    style={{ '--hue': item.hue } as React.CSSProperties}
+                                >
+                                    {item.youtube ? (
+                                        <YouTubeEmbed id={item.youtube} title={`${item.client} — ${item.title}`}>
+                                            {image}
+                                            {index}
+                                        </YouTubeEmbed>
+                                    ) : (
+                                        <a href={item.url} target="_blank" rel="noreferrer" className={styles.workArt} data-cursor="View">
+                                            {image}
+                                            {index}
+                                        </a>
+                                    )}
+                                    <div className={styles.workMeta}>
+                                        <p className={styles.workClient}>
+                                            {item.client} <span>{item.year}</span>
+                                        </p>
+                                        <h3>{item.title}</h3>
+                                        <ul>
+                                            {item.stats.map((stat) => (
+                                                <li key={stat}>{stat}</li>
+                                            ))}
+                                        </ul>
+                                        {item.award && <p className={styles.award}>{item.award}</p>}
+                                        <a href={item.url} target="_blank" rel="noreferrer" className={styles.workLink}>
+                                            {item.url.includes('youtu') ? 'Watch on YouTube' : 'Visit the project'} ↗
+                                        </a>
+                                    </div>
+                                </article>
+                            );
+                        })}
                     </div>
                 </section>
 

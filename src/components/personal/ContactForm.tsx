@@ -2,8 +2,7 @@ import * as React from 'react';
 import { profile } from './profile';
 import styles from './personal.module.css';
 
-// Submits to Netlify Forms. The form is declared statically in public/__forms.html so Netlify
-// detects it at deploy time; the hidden "subject" field sets the notification email's subject.
+// Posts to /api/contact, which emails the message through Resend. The chosen topic sets the email subject.
 
 type Status = 'idle' | 'sending' | 'sent' | 'error';
 
@@ -15,14 +14,13 @@ export default function ContactForm() {
     async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
         e.preventDefault();
         const form = e.currentTarget;
-        const data = new FormData(form);
-        data.set('subject', `nuno-silva.com — ${topic.subject} — ${data.get('name')}`);
+        const data = Object.fromEntries(new FormData(form));
         setStatus('sending');
         try {
-            const response = await fetch('/__forms.html', {
+            const response = await fetch('/api/contact', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: new URLSearchParams(data as unknown as Record<string, string>).toString()
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
             });
             if (!response.ok) throw new Error(String(response.status));
             form.reset();
@@ -49,8 +47,6 @@ export default function ContactForm() {
 
     return (
         <form name="contact" method="POST" className={styles.form} onSubmit={onSubmit}>
-            <input type="hidden" name="form-name" defaultValue="contact" />
-            <input type="hidden" name="subject" defaultValue="" />
             <p className={styles.honeypot}>
                 <label>
                     Leave this empty <input name="bot-field" tabIndex={-1} autoComplete="off" />
@@ -61,7 +57,7 @@ export default function ContactForm() {
                 <legend>What is it about?</legend>
                 {topics.map((item) => (
                     <label key={item.value} className={styles.topic}>
-                        <input type="radio" name="topic" value={item.label} checked={topic.value === item.value} onChange={() => setTopic(item)} />
+                        <input type="radio" name="topic" value={item.value} checked={topic.value === item.value} onChange={() => setTopic(item)} />
                         <span>{item.label}</span>
                     </label>
                 ))}
@@ -80,13 +76,11 @@ export default function ContactForm() {
                     <span>Company or organisation</span>
                     <input name="company" autoComplete="organization" />
                 </label>
-                {topic.event ? (
+                {topic.event && (
                     <label className={styles.field}>
                         <span>Date and place</span>
                         <input name="when" placeholder="e.g. 12 March, Lisbon" />
                     </label>
-                ) : (
-                    <input type="hidden" name="when" defaultValue="" />
                 )}
                 <label className={`${styles.field} ${styles.fieldWide}`}>
                     <span>Message</span>

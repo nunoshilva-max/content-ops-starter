@@ -18,6 +18,8 @@ export type Work = {
     // Loaded by the visitor's browser; the gradient shows if an image fails.
     image?: string;
     imageFallback?: string;
+    // YouTube video id: the card plays the film inline instead of linking out.
+    youtube?: string;
     hue: number;
 };
 
@@ -26,6 +28,7 @@ export const profile = {
     domain: 'nuno-silva.com',
     role: 'Engagement Manager @ WYcreative',
     location: 'Lisbon, Portugal',
+    photo: '/images/nuno-silva.jpg',
     tagline: 'Technology in service of people, not the other way around.',
     statement: 'I make sure what agencies promise is what clients get.',
     about: [
@@ -61,6 +64,7 @@ export const profile = {
             title: 'Taste Is',
             year: '2009 — 2014',
             url: 'https://youtu.be/CpUrjkKmero',
+            youtube: 'CpUrjkKmero',
             image: 'https://i.ytimg.com/vi/CpUrjkKmero/maxresdefault.jpg',
             imageFallback: 'https://i.ytimg.com/vi/CpUrjkKmero/hqdefault.jpg',
             stats: ['First digital presence, from zero to global', '24k visitors from 27 countries in 3 months', '10k+ user-generated images'],
@@ -71,7 +75,9 @@ export const profile = {
             title: 'Virtual Museum',
             year: '2015',
             url: 'https://museu.rtp.pt',
-            image: 'https://s0.wp.com/mshots/v1/https%3A%2F%2Fmuseu.rtp.pt?w=1600&h=1000',
+            youtube: 'eyG7A_yrC1A',
+            image: 'https://i.ytimg.com/vi/eyG7A_yrC1A/maxresdefault.jpg',
+            imageFallback: 'https://i.ytimg.com/vi/eyG7A_yrC1A/hqdefault.jpg',
             stats: ['150k unique visitors in year one', '12-minute average engagement — 3× benchmark'],
             award: 'Best Editorial Website · Best UX/UI — CCP',
             hue: 210
@@ -81,6 +87,7 @@ export const profile = {
             title: 'Freedom Dictionary',
             year: '2012',
             url: 'https://youtu.be/7N0ZwgdgnoU',
+            youtube: '7N0ZwgdgnoU',
             image: 'https://i.ytimg.com/vi/7N0ZwgdgnoU/maxresdefault.jpg',
             imageFallback: 'https://i.ytimg.com/vi/7N0ZwgdgnoU/hqdefault.jpg',
             stats: ['2nd Finalist — Best Local Agency, El Ojo de Iberoamérica'],
@@ -164,7 +171,7 @@ export const profile = {
         text: 'A newsletter on leadership, culture and the place of people in an increasingly automated world.'
     },
     quote: 'There is no wave separated from the ocean. The wave IS the ocean.',
-    // Contact form options. The chosen option becomes the subject of the notification email.
+    // Contact form options. The chosen option sets the subject of the email sent by /api/contact.
     contactTopics: [
         { value: 'project', label: 'A project', subject: 'New project enquiry', prompt: 'What are you building, and where do you need help?' },
         { value: 'partnership', label: 'Client partnership', subject: 'Client partnership', prompt: 'Tell me about the relationship you want to grow.' },
