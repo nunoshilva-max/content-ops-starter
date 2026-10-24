@@ -164,7 +164,7 @@ export const profile = {
         text: 'A newsletter on leadership, culture and the place of people in an increasingly automated world.'
     },
     quote: 'There is no wave separated from the ocean. The wave IS the ocean.',
-    // Contact form options. The chosen option becomes the subject of the notification email.
+    // Contact form options. The chosen option sets the subject of the email sent by /api/contact.
     contactTopics: [
         { value: 'project', label: 'A project', subject: 'New project enquiry', prompt: 'What are you building, and where do you need help?' },
         { value: 'partnership', label: 'Client partnership', subject: 'Client partnership', prompt: 'Tell me about the relationship you want to grow.' },
