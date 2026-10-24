@@ -184,12 +184,12 @@ export const profile = {
             {
                 title: 'Não tenho carro há seis anos. Não é virtude, é código postal.',
                 date: '2026-10-13',
-                url: 'https://www.linkedin.com/newsletters/make-people-great-again-7392191024183296001/'
+                url: 'https://www.linkedin.com/pulse/n%C3%A3o-tenho-carro-h%C3%A1-seis-anos-%C3%A9-virtude-c%C3%B3digo-postal-nuno-silva-zmfpe/'
             },
             {
                 title: 'Portugal é o oitavo melhor país para viver. E o último para trabalhar.',
                 date: '2026-09-01',
-                url: 'https://www.linkedin.com/newsletters/make-people-great-again-7392191024183296001/'
+                url: 'https://www.linkedin.com/pulse/portugal-%C3%A9-o-oitavo-melhor-pa%C3%ADs-para-viver-e-%C3%BAltimo-trabalhar-silva-mnwue/'
             },
             {
                 title: 'Ninguém te ensinou a fazer o luto de uma profissão',
