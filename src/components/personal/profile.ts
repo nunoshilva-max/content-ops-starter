@@ -8,6 +8,14 @@ export type Experience = {
     description: string;
 };
 
+export type Issue = {
+    title: string;
+    // ISO date (YYYY-MM-DD)
+    date: string;
+    summary?: string;
+    url: string;
+};
+
 export type Work = {
     client: string;
     title: string;
@@ -168,7 +176,11 @@ export const profile = {
     languages: ['Portuguese', 'English', 'Spanish'],
     newsletter: {
         name: 'MPGA — Make People Great Again',
-        text: 'A newsletter on leadership, culture and the place of people in an increasingly automated world.'
+        text: 'A weekly newsletter on leadership, culture and the place of people in an increasingly automated world.',
+        url: 'https://www.linkedin.com/newsletters/make-people-great-again-7392191024183296001/',
+        // Editions shown on the site, newest first. To add one, copy a block and change its fields:
+        // { title: '…', date: '2026-10-20', summary: 'One sentence.', url: 'https://www.linkedin.com/pulse/…' },
+        issues: [] as Issue[]
     },
     quote: 'There is no wave separated from the ocean. The wave IS the ocean.',
     // Contact form options. The chosen option sets the subject of the email sent by /api/contact.
