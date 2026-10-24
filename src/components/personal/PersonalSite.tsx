@@ -59,17 +59,32 @@ function useReveal() {
 }
 
 // Project image loaded from the web: tries the fallback URL once, then hides itself so the gradient shows.
+// YouTube answers a missing maxresdefault with a 120×90 grey placeholder (not an error), so treat tiny images as failures too.
 function WorkImage({ src, fallback, alt }: { src: string; fallback?: string; alt: string }) {
     const [current, setCurrent] = React.useState(src);
     const [failed, setFailed] = React.useState(false);
+    const imgRef = React.useRef<HTMLImageElement>(null);
+    const fail = React.useCallback(() => {
+        if (fallback && current !== fallback) setCurrent(fallback);
+        else setFailed(true);
+    }, [current, fallback]);
+    const check = React.useCallback(() => {
+        const img = imgRef.current;
+        if (img?.complete && img.naturalWidth <= 120) fail();
+    }, [fail]);
+    // The image may finish loading before React hydrates, when onLoad/onError never fire.
+    React.useEffect(check, [check]);
     if (failed) return null;
     return (
         <img
+            ref={imgRef}
             src={current}
             alt={alt}
             loading="lazy"
-            className={styles.workImage}
-            onError={() => (fallback && current !== fallback ? setCurrent(fallback) : setFailed(true))}
+            // YouTube's always-available hqdefault is 4:3 with black bars; zoom in to crop them.
+            className={current.includes('/hqdefault') ? `${styles.workImage} ${styles.workImageLetterbox}` : styles.workImage}
+            onLoad={check}
+            onError={fail}
         />
     );
 }

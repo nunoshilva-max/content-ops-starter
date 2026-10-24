@@ -511,6 +511,14 @@
     filter: none;
 }
 
+.workImageLetterbox {
+    transform: scale(1.14);
+}
+
+.workCard:hover .workImageLetterbox {
+    transform: scale(1.2);
+}
+
 .workCard:hover .workArt {
     background-position: 0% 100%;
     border-radius: 48px;
