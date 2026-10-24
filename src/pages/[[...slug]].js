@@ -2,11 +2,15 @@ import React from 'react';
 import Head from 'next/head';
 import { allContent } from '../utils/local-content';
 import { getComponent } from '../components/components-registry';
+import PersonalSite from '../components/personal/PersonalSite';
 import { resolveStaticProps } from '../utils/static-props-resolvers';
 import { resolveStaticPaths } from '../utils/static-paths-resolvers';
 import { seoGenerateTitle, seoGenerateMetaTags, seoGenerateMetaDescription } from '../utils/seo-utils';
 
 function Page(props) {
+    if (props.personal) {
+        return <PersonalSite />;
+    }
     const { page, site } = props;
     const { modelName } = page.__metadata;
     if (!modelName) {
@@ -48,6 +52,10 @@ export function getStaticPaths() {
 export async function getStaticProps({ params }) {
     const data = allContent();
     const urlPath = '/' + (params.slug || []).join('/');
+    // The home page is the nuno-silva.com personal site.
+    if (urlPath === '/') {
+        return { props: { personal: true } };
+    }
     const props = await resolveStaticProps(urlPath, data);
     return { props };
 }
