@@ -64,10 +64,13 @@ This starter includes Algolia search integration. To set it up:
 
 ## Chat Window
 
-Every page shows a floating chat button that opens an interactive chat window. Replies are streamed from Claude through the `/api/chat` route. To enable it, set:
+Every page shows a floating chat button that opens a banking assistant. It answers questions about Banco Best's products and services and general banking topics from Banco de Portugal, using web search limited to those sites and listing the pages it used as sources. Replies are streamed from Claude through the `/api/chat` route.
 
-- `ANTHROPIC_API_KEY` - Your Anthropic API key (server-side only, never exposed to the browser)
-- `CHAT_SYSTEM_PROMPT` (optional) - Instructions that set the assistant's tone and what it should know about your site
+Set these environment variables:
+
+- `ANTHROPIC_API_KEY` - Your Anthropic API key (server-side only, never exposed to the browser). Web search must be enabled for your organization in the Claude Console.
+- `CHAT_SEARCH_DOMAINS` (optional) - Comma-separated domains the assistant may search (default: `bancobest.pt,bportugal.pt`)
+- `CHAT_SYSTEM_PROMPT` (optional) - Replaces the built-in instructions in `src/pages/api/chat.js`
 
 ## Next Steps
 

@@ -4,7 +4,14 @@ import Markdown from 'markdown-to-jsx';
 
 type ChatMessage = { role: 'user' | 'assistant'; content: string };
 
-const GREETING = 'Hi! How can I help you today?';
+const TITLE = 'Assistente bancário';
+const GREETING =
+    'Olá! Posso ajudar com informação pública sobre os produtos e serviços do Banco Best e com temas bancários gerais do Banco de Portugal. Em que posso ajudar?';
+const NOTICE = 'Informação geral, não é aconselhamento financeiro. Nunca partilhe palavras-passe, códigos ou dados do cartão.';
+const MARKDOWN_OPTIONS = {
+    forceBlock: true,
+    overrides: { a: { props: { target: '_blank', rel: 'noopener noreferrer' } } }
+};
 
 export default function ChatWidget() {
     const [isOpen, setIsOpen] = React.useState(false);
@@ -50,7 +57,7 @@ export default function ChatWidget() {
             });
             if (!response.ok || !response.body) {
                 const body = await response.json().catch(() => ({}));
-                throw new Error(body.error || 'Something went wrong');
+                throw new Error(body.error || 'Ocorreu um erro.');
             }
             const reader = response.body.getReader();
             const decoder = new TextDecoder();
@@ -70,7 +77,7 @@ export default function ChatWidget() {
             // Drop the empty assistant bubble and put the text back so the user can retry.
             setMessages(messages);
             setInput(text);
-            setError(err instanceof Error ? err.message : 'Something went wrong');
+            setError(err instanceof Error ? err.message : 'Ocorreu um erro.');
         } finally {
             setIsSending(false);
         }
@@ -95,20 +102,21 @@ export default function ChatWidget() {
             {isOpen && (
                 <div
                     role="dialog"
-                    aria-label="Chat"
+                    aria-label={TITLE}
                     className="flex h-[min(560px,calc(100vh-7rem))] w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-2xl border border-neutralAlt/20 bg-white text-dark shadow-2xl sm:w-96"
                 >
                     <div className="flex items-center justify-between bg-primary px-4 py-3 text-light">
-                        <span className="font-semibold">Chat with us</span>
+                        <span className="font-semibold">{TITLE}</span>
                         <div className="flex items-center gap-1">
-                            <button type="button" onClick={resetChat} className="rounded px-2 py-1 text-sm opacity-80 hover:opacity-100" aria-label="Start a new chat">
-                                New
+                            <button type="button" onClick={resetChat} className="rounded px-2 py-1 text-sm opacity-80 hover:opacity-100" aria-label="Nova conversa">
+                                Nova
                             </button>
-                            <button type="button" onClick={() => setIsOpen(false)} className="rounded px-2 py-1 text-xl leading-none opacity-80 hover:opacity-100" aria-label="Close chat">
+                            <button type="button" onClick={() => setIsOpen(false)} className="rounded px-2 py-1 text-xl leading-none opacity-80 hover:opacity-100" aria-label="Fechar chat">
                                 ×
                             </button>
                         </div>
                     </div>
+                    <p className="border-b border-neutralAlt/20 bg-neutral/40 px-4 py-2 text-xs">{NOTICE}</p>
                     <div ref={listRef} className="flex-1 space-y-3 overflow-y-auto px-4 py-4" aria-live="polite">
                         <ChatBubble role="assistant" content={GREETING} />
                         {messages.map((message, index) => (
@@ -129,8 +137,8 @@ export default function ChatWidget() {
                             value={input}
                             onChange={(event) => setInput(event.target.value)}
                             onKeyDown={handleKeyDown}
-                            placeholder="Type a message…"
-                            aria-label="Message"
+                            placeholder="Escreva a sua pergunta…"
+                            aria-label="Mensagem"
                             className="max-h-32 flex-1 resize-none rounded-xl border border-neutralAlt/30 px-3 py-2 text-sm focus:border-primary focus:outline-none"
                         />
                         <button
@@ -138,7 +146,7 @@ export default function ChatWidget() {
                             disabled={isSending || !input.trim()}
                             className="rounded-xl bg-primary px-4 py-2 text-sm font-medium text-light transition-opacity disabled:opacity-50"
                         >
-                            Send
+                            Enviar
                         </button>
                     </form>
                 </div>
@@ -147,7 +155,7 @@ export default function ChatWidget() {
                 type="button"
                 onClick={() => setIsOpen(!isOpen)}
                 aria-expanded={isOpen}
-                aria-label={isOpen ? 'Close chat' : 'Open chat'}
+                aria-label={isOpen ? 'Fechar chat' : 'Abrir chat'}
                 className="flex h-14 w-14 items-center justify-center rounded-full bg-primary text-light shadow-lg transition-transform hover:scale-105"
             >
                 {isOpen ? (
@@ -172,7 +180,7 @@ function ChatBubble({ role, content }: ChatMessage) {
                     isUser ? 'whitespace-pre-wrap rounded-br-sm bg-primary text-light' : 'rounded-bl-sm bg-neutral text-dark [&_*+*]:mt-2 [&_a]:underline [&_ol]:list-decimal [&_ol]:pl-5 [&_pre]:overflow-x-auto [&_ul]:list-disc [&_ul]:pl-5'
                 )}
             >
-                {isUser ? content : content ? <Markdown options={{ forceBlock: true }}>{content}</Markdown> : <TypingDots />}
+                {isUser ? content : content ? <Markdown options={MARKDOWN_OPTIONS}>{content}</Markdown> : <TypingDots />}
             </div>
         </div>
     );
@@ -180,7 +188,7 @@ function ChatBubble({ role, content }: ChatMessage) {
 
 function TypingDots() {
     return (
-        <span className="flex gap-1 py-1" aria-label="Assistant is typing">
+        <span className="flex gap-1 py-1" aria-label="O assistente está a escrever">
             {[0, 150, 300].map((delay) => (
                 <span key={delay} className="h-2 w-2 animate-bounce rounded-full bg-current opacity-60" style={{ animationDelay: `${delay}ms` }} />
             ))}
