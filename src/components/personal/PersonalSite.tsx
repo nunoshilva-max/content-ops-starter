@@ -1,5 +1,6 @@
 import * as React from 'react';
 import Head from 'next/head';
+import ContactForm from './ContactForm';
 import FluidHero from './FluidHero';
 import { profile } from './profile';
 import styles from './personal.module.css';
@@ -55,6 +56,22 @@ function useReveal() {
         items.forEach((item) => observer.observe(item));
         return () => observer.disconnect();
     }, []);
+}
+
+// Project image loaded from the web: tries the fallback URL once, then hides itself so the gradient shows.
+function WorkImage({ src, fallback, alt }: { src: string; fallback?: string; alt: string }) {
+    const [current, setCurrent] = React.useState(src);
+    const [failed, setFailed] = React.useState(false);
+    if (failed) return null;
+    return (
+        <img
+            src={current}
+            alt={alt}
+            loading="lazy"
+            className={styles.workImage}
+            onError={() => (fallback && current !== fallback ? setCurrent(fallback) : setFailed(true))}
+        />
+    );
 }
 
 function SectionLabel({ index, children }: { index: string; children: React.ReactNode }) {
@@ -119,7 +136,7 @@ export default function PersonalSite() {
                         </h1>
                         <div className={styles.heroFoot}>
                             <p>{profile.statement}</p>
-                            <span className={styles.scrollHint}>Move. Scroll.</span>
+                            <span className={styles.scrollHint}>Move. Click. Scroll.</span>
                         </div>
                     </div>
                 </section>
@@ -169,8 +186,11 @@ export default function PersonalSite() {
                                 style={{ '--hue': item.hue } as React.CSSProperties}
                                 data-cursor="View"
                             >
-                                <div className={styles.workArt} aria-hidden="true">
-                                    <span className={styles.workIndex}>{String(i + 1).padStart(2, '0')}</span>
+                                <div className={styles.workArt}>
+                                    {item.image && <WorkImage src={item.image} fallback={item.imageFallback} alt={`${item.client} — ${item.title}`} />}
+                                    <span className={styles.workIndex} aria-hidden="true">
+                                        {String(i + 1).padStart(2, '0')}
+                                    </span>
                                 </div>
                                 <div className={styles.workMeta}>
                                     <p className={styles.workClient}>
@@ -258,11 +278,11 @@ export default function PersonalSite() {
 
             <footer id="contact" className={styles.contact}>
                 <SectionLabel index="07">Contact</SectionLabel>
-                <a href={`mailto:${profile.links.email}`} className={styles.contactBig} data-cursor="Write">
+                <h2 className={styles.contactBig}>
                     Let’s <em>talk.</em>
-                </a>
+                </h2>
+                <ContactForm />
                 <div className={styles.contactRow}>
-                    <a href={`mailto:${profile.links.email}`}>{profile.links.email}</a>
                     <a href={profile.links.linkedin} target="_blank" rel="noreferrer">
                         LinkedIn ↗
                     </a>
