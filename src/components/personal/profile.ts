@@ -15,6 +15,9 @@ export type Work = {
     url?: string;
     stats: string[];
     award?: string;
+    // Loaded by the visitor's browser; the gradient shows if an image fails.
+    image?: string;
+    imageFallback?: string;
     hue: number;
 };
 
@@ -58,6 +61,8 @@ export const profile = {
             title: 'Taste Is',
             year: '2009 — 2014',
             url: 'https://youtu.be/CpUrjkKmero',
+            image: 'https://i.ytimg.com/vi/CpUrjkKmero/maxresdefault.jpg',
+            imageFallback: 'https://i.ytimg.com/vi/CpUrjkKmero/hqdefault.jpg',
             stats: ['First digital presence, from zero to global', '24k visitors from 27 countries in 3 months', '10k+ user-generated images'],
             hue: 340
         },
@@ -66,6 +71,7 @@ export const profile = {
             title: 'Virtual Museum',
             year: '2015',
             url: 'https://museu.rtp.pt',
+            image: 'https://s0.wp.com/mshots/v1/https%3A%2F%2Fmuseu.rtp.pt?w=1600&h=1000',
             stats: ['150k unique visitors in year one', '12-minute average engagement — 3× benchmark'],
             award: 'Best Editorial Website · Best UX/UI — CCP',
             hue: 210
@@ -75,6 +81,8 @@ export const profile = {
             title: 'Freedom Dictionary',
             year: '2012',
             url: 'https://youtu.be/7N0ZwgdgnoU',
+            image: 'https://i.ytimg.com/vi/7N0ZwgdgnoU/maxresdefault.jpg',
+            imageFallback: 'https://i.ytimg.com/vi/7N0ZwgdgnoU/hqdefault.jpg',
             stats: ['2nd Finalist — Best Local Agency, El Ojo de Iberoamérica'],
             award: 'Gold — El Ojo de Iberoamérica',
             hue: 45
@@ -156,8 +164,18 @@ export const profile = {
         text: 'A newsletter on leadership, culture and the place of people in an increasingly automated world.'
     },
     quote: 'There is no wave separated from the ocean. The wave IS the ocean.',
+    // Contact form options. The chosen option becomes the subject of the notification email.
+    contactTopics: [
+        { value: 'project', label: 'A project', subject: 'New project enquiry', prompt: 'What are you building, and where do you need help?' },
+        { value: 'partnership', label: 'Client partnership', subject: 'Client partnership', prompt: 'Tell me about the relationship you want to grow.' },
+        { value: 'talk', label: 'Talk or keynote', subject: 'Talk / keynote invitation', prompt: 'Event, audience, date and the topic you have in mind.', event: true },
+        { value: 'lecture', label: 'Lecture or workshop', subject: 'Lecture / workshop invitation', prompt: 'School or organisation, audience, date and topic.', event: true },
+        { value: 'jury', label: 'Jury', subject: 'Jury invitation', prompt: 'Which festival or award, category and dates?', event: true },
+        { value: 'press', label: 'Press or podcast', subject: 'Press / podcast request', prompt: 'Publication or show, format and deadline.', event: true },
+        { value: 'mpga', label: 'MPGA newsletter', subject: 'MPGA newsletter', prompt: 'An idea, a story or a collaboration for MPGA.' },
+        { value: 'hello', label: 'Just saying hi', subject: 'Hello', prompt: 'Say hi.' }
+    ],
     links: {
-        linkedin: 'https://www.linkedin.com/in/nunossilva',
-        email: 'nuno.shilva@gmail.com'
+        linkedin: 'https://www.linkedin.com/in/nunossilva'
     }
 };
