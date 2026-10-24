@@ -62,6 +62,13 @@ This starter includes Algolia search integration. To set it up:
    - `NEXT_PUBLIC_ALGOLIA_SEARCH_API_KEY` - Your Algolia search-only API key
    - `NEXT_PUBLIC_ALGOLIA_INDEX_NAME` - Your index name
 
+## Chat Window
+
+Every page shows a floating chat button that opens an interactive chat window. Replies are streamed from Claude through the `/api/chat` route. To enable it, set:
+
+- `ANTHROPIC_API_KEY` - Your Anthropic API key (server-side only, never exposed to the browser)
+- `CHAT_SYSTEM_PROMPT` (optional) - Instructions that set the assistant's tone and what it should know about your site
+
 ## Next Steps
 
 Here are a few suggestions on what to do next if you're new to Netlify visual editor:
