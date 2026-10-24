@@ -62,6 +62,16 @@ This starter includes Algolia search integration. To set it up:
    - `NEXT_PUBLIC_ALGOLIA_SEARCH_API_KEY` - Your Algolia search-only API key
    - `NEXT_PUBLIC_ALGOLIA_INDEX_NAME` - Your index name
 
+## Chat Window
+
+Every page shows a floating chat button that opens a banking assistant. It answers questions about Banco Best's products and services and general banking topics from Banco de Portugal, using web search limited to those sites and listing the pages it used as sources. Replies are streamed from Claude through the `/api/chat` route.
+
+Set these environment variables:
+
+- `ANTHROPIC_API_KEY` - Your Anthropic API key (server-side only, never exposed to the browser). Web search must be enabled for your organization in the Claude Console.
+- `CHAT_SEARCH_DOMAINS` (optional) - Comma-separated domains the assistant may search (default: `bancobest.pt,bportugal.pt`)
+- `CHAT_SYSTEM_PROMPT` (optional) - Replaces the built-in instructions in `src/pages/api/chat.js`
+
 ## Next Steps
 
 Here are a few suggestions on what to do next if you're new to Netlify visual editor:

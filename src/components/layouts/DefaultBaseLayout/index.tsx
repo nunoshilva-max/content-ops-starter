@@ -2,6 +2,7 @@ import * as React from 'react';
 import classNames from 'classnames';
 import Header from '../../sections/Header';
 import Footer from '../../sections/Footer';
+import ChatWidget from '../../blocks/ChatWidget';
 
 export default function DefaultBaseLayout(props) {
     const { page, site } = props;
@@ -15,6 +16,7 @@ export default function DefaultBaseLayout(props) {
                 {props.children}
                 {site.footer && <Footer {...site.footer} enableAnnotations={enableAnnotations} />}
             </div>
+            <ChatWidget />
         </div>
     );
 }
