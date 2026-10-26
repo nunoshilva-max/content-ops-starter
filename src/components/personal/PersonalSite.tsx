@@ -438,18 +438,35 @@ export default function PersonalSite({ lang }: { lang: Lang }) {
                 {profile.testimonials.length > 0 && (
                     <section id="testimonials" className={styles.section}>
                         <SectionLabel index={number('testimonials')}>{t.sections.testimonials}</SectionLabel>
-                        <div className={styles.testimonials}>
-                            {profile.testimonials.map((item) => (
-                                <figure key={item.name} className={styles.reveal}>
-                                    <blockquote>“{item.quote}”</blockquote>
-                                    <figcaption>
-                                        <strong>{item.name}</strong>
-                                        <span>{item.role}</span>
-                                    </figcaption>
-                                </figure>
-                            ))}
-                        </div>
                     </section>
+                )}
+                {profile.testimonials.length > 0 && (
+                    // A slow loop of LinkedIn recommendations; it pauses on hover and can also be scrolled.
+                    <div className={styles.quotes}>
+                        <div className={styles.quotesTrack}>
+                            {[0, 1].map((copy) =>
+                                profile.testimonials.map((item) => (
+                                    <figure key={`${copy}-${item.name}`} aria-hidden={copy === 1 ? 'true' : undefined}>
+                                        <blockquote lang="en">“{item.quote}”</blockquote>
+                                        <figcaption>
+                                            <strong>{item.name}</strong>
+                                            <span>{item.role}</span>
+                                            <span>
+                                                {tr(item.relation, lang)} · {item.year}
+                                            </span>
+                                        </figcaption>
+                                    </figure>
+                                ))
+                            )}
+                        </div>
+                    </div>
+                )}
+                {profile.testimonials.length > 0 && (
+                    <p className={styles.quotesMore}>
+                        <a href={profile.recommendationsUrl} target="_blank" rel="noreferrer">
+                            {t.allRecommendations} ↗
+                        </a>
+                    </p>
                 )}
             </main>
 

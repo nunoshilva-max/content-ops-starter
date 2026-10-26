@@ -40,11 +40,17 @@ export type Work = {
 };
 
 export type Testimonial = {
-    // Kept in the language it was written in.
+    // Kept as written on LinkedIn; "…" marks omitted text.
     quote: string;
     name: string;
     role: string;
+    relation: Text;
+    year: string;
 };
+
+const CLIENT = { en: 'Client', pt: 'Cliente' };
+const TEAM = { en: 'Worked in my team', pt: 'Trabalhou na minha equipa' };
+const PEER = { en: 'Worked alongside me', pt: 'Trabalhou comigo' };
 
 export const profile = {
     name: 'Nuno Silva',
@@ -333,9 +339,80 @@ export const profile = {
         { school: 'Evoé — School of Actors', degree: { en: 'Acting course', pt: 'Curso de teatro' } }
     ],
     languages: { en: 'Portuguese · English · Spanish', pt: 'Português · Inglês · Espanhol' },
-    // Recommendations shown on the site; the section is hidden while this is empty.
-    // { quote: '…', name: 'Name Surname', role: 'Role, Company' },
-    testimonials: [] as Testimonial[],
+    // LinkedIn recommendations shown on the site, in this order; the section is hidden while this is empty.
+    recommendationsUrl: 'https://www.linkedin.com/in/nunossilva/details/recommendations/',
+    testimonials: [
+        {
+            quote: 'He started to work on digital back in 1996, when brands were still burning CD-Roms and people started to have dial-up modems. … One who knows digital and brands inside out. Nuno always brings added value, he’s an excellent teacher and a leader as well.',
+            name: 'Joana Veiga',
+            role: 'Global design strategy, customer centricity',
+            relation: TEAM,
+            year: '2013'
+        },
+        {
+            quote: 'He is focused, committed and always looking for the best results for their clients. As a client I felt good to know that I could count with Nuno experience and availability to build and implement the marketing digital strategy of a global brand like Sandeman.',
+            name: 'Catarina Soares',
+            role: 'International Sales & Marketing, Wine Business',
+            relation: CLIENT,
+            year: '2013'
+        },
+        {
+            quote: 'It was great working with Nuno. He has this positive outlook on things and he was very likeable to work with. He was strong in his technical skills and gave me confidence he was doing a good job.',
+            name: 'Andreia Vaz',
+            role: 'Head of Brand & CX, Worten',
+            relation: CLIENT,
+            year: '2016'
+        },
+        {
+            quote: '… the results were always outstanding. Excellent management of projects and with deliveries above your expectations. Top Digital expertise with up-to-date solutions.',
+            name: 'Tiago Strecht',
+            role: 'Country Manager, Findasense Portugal',
+            relation: CLIENT,
+            year: '2013'
+        },
+        {
+            quote: 'Nuno is a sensible person to work with and he’s always willing to give his expertise to make projects grow. He’s truly committed to team work for the sake of the project. He’s a real digital partner.',
+            name: 'Susana Albuquerque',
+            role: 'Executive Creative Director and Partner, Uzina',
+            relation: CLIENT,
+            year: '2011'
+        },
+        {
+            quote: 'I not only recommend him as a business partner that you can trust, but as an owner of one of the best digital agencies in Portugal.',
+            name: 'Mário Alcântara',
+            role: 'Senior Advisor',
+            relation: PEER,
+            year: '2010'
+        },
+        {
+            quote: 'Nuno was my internet guru. Working with him inspired me to learn and try new ideas and concepts in the web. Excellent creative mind, he knows how to bring the best out of you.',
+            name: 'Jose Valente',
+            role: 'Wiz Interactive',
+            relation: TEAM,
+            year: '2010'
+        },
+        {
+            quote: '… an excellent professional who consistently pursues a balance between the client, the team and the final user. Digital minded with up-to-date solutions and on top of digital trends.',
+            name: 'Martim Dornellas',
+            role: 'Co-Founder, Van der Waal',
+            relation: TEAM,
+            year: '2013'
+        },
+        {
+            quote: 'Nuno is THE most perfectionist person I’ve ever worked with. … Very serious about his job, handles difficulties very well and deals with them with extreme calm.',
+            name: 'Jose Silva',
+            role: 'Network Architect',
+            relation: PEER,
+            year: '2008'
+        },
+        {
+            quote: 'I always have admired Nuno capacity to work and direct answers to many hard to answer problems.',
+            name: 'Fernando Vasconcelos',
+            role: 'Marketing Director, Mind',
+            relation: PEER,
+            year: '2005'
+        }
+    ] as Testimonial[],
     quote: {
         en: 'There is no wave separated from the ocean. The wave IS the ocean.',
         pt: 'Não há onda separada do oceano. A onda É o oceano.'
