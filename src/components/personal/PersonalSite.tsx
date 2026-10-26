@@ -20,7 +20,7 @@ function Cursor() {
         const onMove = (e: PointerEvent) => {
             target.x = e.clientX;
             target.y = e.clientY;
-            const hot = (e.target as Element).closest?.('a, button');
+            const hot = (e.target as Element).closest?.('a, button, [data-cursor]');
             el.classList.toggle(styles.cursorHot, !!hot);
             el.dataset.label = hot?.getAttribute('data-cursor') || '';
         };
@@ -139,6 +139,118 @@ function Portrait({ lang }: { lang: Lang }) {
             </svg>
             <img ref={imgRef} src={profile.photo} alt={profile.name} className={styles.portraitPhoto} onError={() => setFailed(true)} />
         </figure>
+    );
+}
+
+// Endless strip of recommendation cards. It drifts slowly on its own, can be dragged with the
+// mouse or a finger (and keeps some momentum when released) or swiped on a trackpad, and slows
+// to a stop while the mouse is over it. The children hold two copies of the cards, so moving by
+// half the track's width brings it back to the same picture.
+function QuoteLoop({ label, children }: { label: string; children: React.ReactNode }) {
+    const viewportRef = React.useRef<HTMLDivElement>(null);
+    const trackRef = React.useRef<HTMLDivElement>(null);
+
+    React.useEffect(() => {
+        const viewport = viewportRef.current;
+        const track = trackRef.current;
+        const drift = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 28; // px per second
+        let offset = 0;
+        let velocity = 0;
+        let speed = drift;
+        let dragging = false;
+        let hovering = false;
+        let lastX = 0;
+        let lastTime = 0;
+        let raf = 0;
+        let previous = performance.now();
+
+        const frame = (now: number) => {
+            const dt = Math.min(Math.max((now - previous) / 1000, 0), 0.05);
+            previous = now;
+            if (!dragging) {
+                speed += ((hovering ? 0 : drift) - speed) * Math.min(dt * 3, 1);
+                offset += (speed + velocity) * dt;
+                velocity *= Math.pow(0.03, dt);
+            }
+            const half = track.scrollWidth / 2;
+            if (half > 0) offset = ((offset % half) + half) % half;
+            track.style.transform = `translate3d(${-offset}px, 0, 0)`;
+            raf = requestAnimationFrame(frame);
+        };
+
+        const onDown = (e: PointerEvent) => {
+            if (e.pointerType === 'mouse' && e.button !== 0) return;
+            dragging = true;
+            velocity = 0;
+            lastX = e.clientX;
+            lastTime = e.timeStamp;
+            viewport.setPointerCapture(e.pointerId);
+            viewport.classList.add(styles.quotesDragging);
+        };
+        const onMove = (e: PointerEvent) => {
+            if (!dragging) return;
+            const dx = e.clientX - lastX;
+            const elapsed = Math.max((e.timeStamp - lastTime) / 1000, 0.001);
+            offset -= dx;
+            velocity = velocity * 0.7 + (-dx / elapsed) * 0.3;
+            lastX = e.clientX;
+            lastTime = e.timeStamp;
+        };
+        const onUp = () => {
+            dragging = false;
+            velocity = Math.max(-3000, Math.min(3000, velocity));
+            viewport.classList.remove(styles.quotesDragging);
+        };
+        const onEnter = (e: PointerEvent) => {
+            if (e.pointerType === 'mouse') hovering = true;
+        };
+        const onLeave = () => {
+            hovering = false;
+        };
+        // Horizontal trackpad swipes move the strip; vertical scrolling still scrolls the page.
+        const onWheel = (e: WheelEvent) => {
+            if (Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return;
+            e.preventDefault();
+            offset += e.deltaX;
+        };
+
+        viewport.addEventListener('pointerdown', onDown);
+        viewport.addEventListener('pointermove', onMove);
+        viewport.addEventListener('pointerup', onUp);
+        viewport.addEventListener('pointercancel', onUp);
+        viewport.addEventListener('pointerenter', onEnter);
+        viewport.addEventListener('pointerleave', onLeave);
+        viewport.addEventListener('wheel', onWheel, { passive: false });
+
+        // Only animate while the strip is on screen.
+        const observer = new IntersectionObserver(([entry]) => {
+            cancelAnimationFrame(raf);
+            if (entry.isIntersecting) {
+                previous = performance.now();
+                raf = requestAnimationFrame(frame);
+            }
+        });
+        observer.observe(viewport);
+
+        return () => {
+            cancelAnimationFrame(raf);
+            observer.disconnect();
+            viewport.removeEventListener('pointerdown', onDown);
+            viewport.removeEventListener('pointermove', onMove);
+            viewport.removeEventListener('pointerup', onUp);
+            viewport.removeEventListener('pointercancel', onUp);
+            viewport.removeEventListener('pointerenter', onEnter);
+            viewport.removeEventListener('pointerleave', onLeave);
+            viewport.removeEventListener('wheel', onWheel);
+        };
+    }, []);
+
+    return (
+        <div ref={viewportRef} className={styles.quotes} data-cursor={label}>
+            <div ref={trackRef} className={styles.quotesTrack}>
+                {children}
+            </div>
+        </div>
     );
 }
 
@@ -438,18 +550,32 @@ export default function PersonalSite({ lang }: { lang: Lang }) {
                 {profile.testimonials.length > 0 && (
                     <section id="testimonials" className={styles.section}>
                         <SectionLabel index={number('testimonials')}>{t.sections.testimonials}</SectionLabel>
-                        <div className={styles.testimonials}>
-                            {profile.testimonials.map((item) => (
-                                <figure key={item.name} className={styles.reveal}>
-                                    <blockquote>“{item.quote}”</blockquote>
-                                    <figcaption>
-                                        <strong>{item.name}</strong>
-                                        <span>{item.role}</span>
-                                    </figcaption>
-                                </figure>
-                            ))}
-                        </div>
                     </section>
+                )}
+                {profile.testimonials.length > 0 && (
+                    <QuoteLoop label={t.dragCursor}>
+                            {[0, 1].map((copy) =>
+                                profile.testimonials.map((item) => (
+                                    <figure key={`${copy}-${item.name}`} aria-hidden={copy === 1 ? 'true' : undefined}>
+                                        <blockquote lang="en">“{item.quote}”</blockquote>
+                                        <figcaption>
+                                            <strong>{item.name}</strong>
+                                            <span>{item.role}</span>
+                                            <span>
+                                                {tr(item.relation, lang)} · {item.year}
+                                            </span>
+                                        </figcaption>
+                                    </figure>
+                                ))
+                            )}
+                    </QuoteLoop>
+                )}
+                {profile.testimonials.length > 0 && (
+                    <p className={styles.quotesMore}>
+                        <a href={profile.recommendationsUrl} target="_blank" rel="noreferrer">
+                            {t.allRecommendations} ↗
+                        </a>
+                    </p>
                 )}
             </main>
 

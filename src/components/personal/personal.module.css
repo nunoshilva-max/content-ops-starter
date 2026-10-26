@@ -1199,34 +1199,80 @@
     color: var(--muted);
 }
 
-/* Testimonials */
-.testimonials {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: clamp(32px, 4vw, 64px);
+/* Recommendations: a slow loop of cards */
+.quotes {
+    overflow: hidden;
+    padding: 0 0 8px;
+    cursor: grab;
+    /* Vertical swipes still scroll the page; horizontal drags move the strip. */
+    touch-action: pan-y;
+    user-select: none;
+    -webkit-user-select: none;
 }
 
-.testimonials figure {
+.quotesDragging {
+    cursor: grabbing;
+}
+
+.quotesTrack {
+    display: flex;
+    gap: 24px;
+    width: max-content;
+    /* Trailing space equal to the gap, so moving by half the track loops seamlessly. */
+    padding-right: 24px;
+    will-change: transform;
+}
+
+.quotesTrack figure {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 28px;
+    width: clamp(290px, 30vw, 420px);
     margin: 0;
-    padding-top: 28px;
-    border-top: 1px solid var(--line);
+    padding: 28px;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: rgba(242, 239, 233, 0.03);
 }
 
-.testimonials blockquote {
+.quotesTrack blockquote {
     font-family: var(--serif);
     font-style: italic;
-    font-size: clamp(22px, 2vw, 30px);
-    line-height: 1.25;
+    font-size: clamp(20px, 1.7vw, 26px);
+    line-height: 1.28;
 }
 
-.testimonials figcaption {
-    margin-top: 20px;
+.quotesTrack figcaption {
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.quotesTrack figcaption strong {
+    display: block;
+    font-size: 16px;
+    font-weight: 500;
+}
+
+.quotesTrack figcaption span {
+    display: block;
+    color: var(--muted);
+}
+
+.quotesMore {
+    padding: 28px var(--gutter) 0;
     font-size: 15px;
 }
 
-.testimonials figcaption span {
-    display: block;
-    color: var(--muted);
+.quotesMore a {
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 4px;
+    transition: color 0.3s, border-color 0.3s;
+}
+
+.quotesMore a:hover {
+    color: var(--accent);
+    border-color: var(--accent);
 }
 
 /* Footer buttons and form privacy note */

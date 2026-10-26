@@ -18,7 +18,7 @@ export const ui = {
             bring: 'What I bring',
             path: 'Path',
             recognition: 'Recognition',
-            testimonials: 'Kind words',
+            testimonials: 'Recommendations',
             contact: 'Contact'
         },
         statement: ['I make sure what agencies ', 'promise', ' is what clients ', 'get.'],
@@ -64,7 +64,9 @@ export const ui = {
             more: 'Privacy policy',
             manage: 'Cookie settings'
         },
-        footerPrivacy: 'Privacy'
+        footerPrivacy: 'Privacy',
+        allRecommendations: 'All recommendations on LinkedIn',
+        dragCursor: 'Drag'
     },
     pt: {
         home: '/pt/',
@@ -82,7 +84,7 @@ export const ui = {
             bring: 'O que trago',
             path: 'Percurso',
             recognition: 'Reconhecimento',
-            testimonials: 'Palavras de outros',
+            testimonials: 'Recomendações',
             contact: 'Contacto'
         },
         statement: ['Garanto que o que as agências ', 'prometem', ' é o que os clientes ', 'recebem.'],
@@ -128,7 +130,9 @@ export const ui = {
             more: 'Política de privacidade',
             manage: 'Definições de cookies'
         },
-        footerPrivacy: 'Privacidade'
+        footerPrivacy: 'Privacidade',
+        allRecommendations: 'Todas as recomendações no LinkedIn',
+        dragCursor: 'Arrastar'
     }
 } satisfies Record<Lang, unknown>;
 
