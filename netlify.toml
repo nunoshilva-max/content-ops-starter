@@ -1,3 +1,40 @@
 [build]
   command = "npm run build"
   publish = ".next"
+
+# Pages from the original template were removed; send old links to the home page.
+[[redirects]]
+  from = "/careers"
+  to = "/"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/careers/*"
+  to = "/"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/pricing"
+  to = "/"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/pricing/*"
+  to = "/"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/blog"
+  to = "/"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/blog/*"
+  to = "/"
+  status = 301
+  force = true

@@ -1,14 +1,22 @@
 import * as React from 'react';
 import styles from './personal.module.css';
 
-// A raymarched liquid object for the hero. It cycles through three materials:
+// A raymarched liquid object for the hero. It cycles through four forms:
 // spiky black latex (ferrofluid spikes that stand up towards the cursor),
-// pink and shock-green plush, and clear water. The blob leans and reaches for
-// the pointer, fast movement excites it, and a click skips to the next form.
+// long-haired pink plush that turns shock green, and clear water. The blob
+// leans and reaches for the pointer, fast movement excites it (and ruffles the
+// fur), and a click skips to the next form.
 
 const HOLD = 5;
 const MORPH = 2.2;
 const SEGMENT = HOLD + MORPH;
+// The cycle: material 0 latex, 1 plush, 2 water; fur 0 is pink, 1 is green.
+const FORMS = [
+    { material: 0, fur: 0 },
+    { material: 1, fur: 0 },
+    { material: 1, fur: 1 },
+    { material: 2, fur: 1 }
+];
 
 const VERTEX = `
 attribute vec2 aPos;
@@ -22,6 +30,7 @@ uniform float uTime;
 uniform vec2 uMouse;
 uniform vec2 uRot;
 uniform vec3 uW;
+uniform float uFurMix;
 uniform float uEnergy;
 uniform vec2 uCenter;
 uniform float uDist;
@@ -52,15 +61,12 @@ float shape(vec3 p) {
     float spikes = pow(abs(sin(s.x) * sin(s.y) * sin(s.z)), 3.2);
     float latex = spikes * (0.22 + 0.5 * reach + 0.25 * uEnergy);
 
-    // Plush: big soft lumps with a fuzzy, fibrous surface.
-    float plush = (noise(q * 1.7 + uTime * 0.22) - 0.5) * 0.5 + (noise(q * 36.0) - 0.5) * 0.03 + 0.05;
-
     // Water: a wobbling drop with ripples running out from the cursor side.
     float water = sin(n.x * 4.0 + uTime * 1.5) * sin(n.y * 3.5 - uTime * 1.2) * sin(n.z * 3.0 + uTime) * 0.1
                 + sin(dot(n, mDir) * 16.0 - uTime * 5.0) * 0.014 * (1.0 + 3.0 * uEnergy);
 
     float r = 1.0 + 0.03 * sin(uTime * 1.3) + reach * (0.12 + 0.12 * uEnergy);
-    return len - r - uW.x * latex - uW.y * plush - uW.z * water;
+    return len - r - uW.x * latex - uW.z * water;
 }
 
 vec3 normalAt(vec3 p) {
@@ -76,6 +82,69 @@ vec3 env(vec3 d) {
     c += vec3(0.3, 1.0, 0.25) * smoothstep(0.6, 0.95, -d.x) * smoothstep(0.6, 0.0, abs(d.y - 0.15)) * 0.8;
     c += vec3(0.3, 0.2, 0.6) * smoothstep(0.0, -0.9, d.y) * 0.25;
     return c;
+}
+
+// Plush: long fur traced as a volume. Strands are cells of a fine noise pattern on the
+// sphere of directions; they thin out towards the tips, gather in clumps and bend
+// with gravity, the cursor and a slow breeze, more the further they are from the root.
+const float FUR = 0.42;
+const vec3 PINK = vec3(1.0, 0.36, 0.72);
+const vec3 GREEN = vec3(0.36, 1.0, 0.1);
+
+float coreRadius(vec3 n) {
+    return 0.82 + (noise(n * 1.6 + uTime * 0.12) - 0.5) * 0.2;
+}
+
+vec4 furVolume(vec3 ro, vec3 rd) {
+    float len = FUR * uW.y;
+    float outer = 0.95 + len;
+    float b = dot(ro, rd);
+    float h = b * b - dot(ro, ro) + outer * outer;
+    if (h < 0.0) return vec4(0.0);
+    float t = -b - sqrt(h);
+    float tEnd = -b + sqrt(h);
+    vec3 furCol = mix(PINK, GREEN, uFurMix);
+    vec3 gravity = R * vec3(0.0, -1.0, 0.0);
+    vec3 L = normalize(R * vec3(-0.4, 0.85, 0.6));
+    vec3 col = vec3(0.0);
+    float alpha = 0.0;
+    for (int i = 0; i < 110; i++) {
+        vec3 q = R * (ro + rd * t);
+        float r = length(q);
+        vec3 n = q / r;
+        float rc = coreRadius(n);
+        float hgt = (r - rc) / max(len, 1e-3);
+        if (hgt < 0.0) {
+            // The dense undercoat at the roots.
+            col += (1.0 - alpha) * furCol * 0.07;
+            alpha = 1.0;
+            break;
+        }
+        if (hgt < 1.0) {
+            vec3 toCursor = mDir - n * dot(n, mDir);
+            vec3 breeze = vec3(sin(uTime * 0.8 + n.y * 4.0), 0.0, cos(uTime * 0.7 + n.x * 4.0));
+            vec3 bend = gravity * 0.5 + toCursor * (0.35 + 0.6 * uEnergy) + breeze * (0.08 + 0.25 * uEnergy);
+            vec3 sn = normalize(n + bend * hgt * hgt * 0.45);
+            float clump = noise(sn * 16.0);
+            float strand = noise(sn * 72.0 + clump * 3.0);
+            float edge = 0.4 + 0.55 * hgt;
+            float density = smoothstep(edge, edge + 0.08, strand * 0.72 + clump * 0.38);
+            if (density > 0.0) {
+                float rootShade = 0.18 + 0.82 * pow(hgt, 0.7);
+                float diffuse = clamp(dot(n, L) * 0.5 + 0.55, 0.0, 1.0);
+                float sheen = pow(1.0 - abs(dot(rd, n)), 2.5) * hgt;
+                vec3 c = furCol * rootShade * (0.4 + 1.05 * diffuse) + mix(furCol, vec3(1.0), 0.55) * sheen * 0.5;
+                float a = density * 0.42;
+                col += (1.0 - alpha) * a * c;
+                alpha += (1.0 - alpha) * a;
+                if (alpha > 0.97) break;
+            }
+        }
+        // Small steps through the fur, larger ones through the empty space above the tips.
+        t += max(0.012, (hgt - 1.0) * len);
+        if (t > tEnd) break;
+    }
+    return vec4(col, alpha);
 }
 
 vec3 backdrop(vec2 p) {
@@ -101,24 +170,22 @@ void main() {
     vec3 ro = vec3(0.0, 0.0, uDist);
     vec3 rd = normalize(vec3(p - uCenter, -1.6));
 
-    // Only march inside the bounding sphere.
+    // Latex and water: a raymarched surface, only inside the bounding sphere.
+    float surfaceWeight = uW.x + uW.z;
+    vec3 surface = col;
     float b = dot(ro, rd);
     float h = b * b - dot(ro, ro) + 2.2 * 2.2;
-    if (h > 0.0) {
+    if (surfaceWeight > 0.01 && h > 0.0) {
         float t = -b - sqrt(h);
         float tEnd = -b + sqrt(h);
-        float stepScale = mix(0.65, 0.22, uW.x);
-        float minD = 1e3;
+        float stepScale = mix(0.65, 0.22, uW.x / surfaceWeight);
         bool hit = false;
         for (int i = 0; i < 140; i++) {
             float d = shape(ro + rd * t);
-            minD = min(minD, d);
             if (d < 0.001 * t) { hit = true; break; }
             t += d * stepScale;
             if (t > tEnd) break;
         }
-
-        vec3 fur = mix(vec3(1.0, 0.2, 0.62), vec3(0.32, 1.0, 0.1), smoothstep(0.42, 0.58, noise(R * (ro + rd * t) * 1.5 + vec3(0.0, 0.0, uTime * 0.15))));
 
         if (hit) {
             vec3 pos = ro + rd * t;
@@ -135,11 +202,6 @@ void main() {
             latex += mix(vec3(1.0, 0.3, 0.7), vec3(0.4, 0.3, 1.0), 0.5 + 0.5 * nor.y) * pow(1.0 - ndv, 3.0) * 0.35;
             latex += pow(max(dot(nor, H), 0.0), 160.0) * 2.2;
 
-            float fibre = noise(q * 70.0) * noise(q * 21.0 + 3.0);
-            float wrap = clamp((dot(nor, L) + 0.6) / 1.6, 0.0, 1.0);
-            vec3 plush = fur * (0.22 + 0.78 * wrap) * (0.5 + 0.75 * fibre);
-            plush += mix(fur, vec3(1.0), 0.45) * pow(1.0 - ndv, 2.5) * 0.85;
-
             vec3 rr = refract(rd, nor, 0.75);
             float caustic = pow(noise(q * 3.0 + uTime * 0.6), 4.0);
             vec3 water = backdrop(p + rr.xy * 0.4) * vec3(0.8, 1.0, 1.15) + env(rr) * 0.12;
@@ -147,14 +209,18 @@ void main() {
             water = mix(water, env(refl), 0.08 + 0.92 * fres);
             water += pow(max(dot(nor, H), 0.0), 240.0) * 2.8;
 
-            vec3 obj = uW.x * latex + uW.y * plush + uW.z * water;
-            col = obj / (1.0 + obj * 0.3);
-        } else {
-            // Stray fibres around the plush silhouette.
-            float halo = smoothstep(0.07, 0.0, minD) * noise(rd * 260.0);
-            col += fur * halo * uW.y * 0.7;
+            vec3 obj = (uW.x * latex + uW.z * water) / surfaceWeight;
+            surface = obj / (1.0 + obj * 0.3);
         }
     }
+
+    // Plush: the fur grows in as it fades in, and is composited over the backdrop.
+    vec3 plush = col;
+    if (uW.y > 0.01) {
+        vec4 fur = furVolume(ro, rd);
+        plush = col * (1.0 - fur.a) + fur.rgb / (1.0 + fur.rgb * 0.3);
+    }
+    col = surfaceWeight * surface + uW.y * plush;
 
     vec2 uv = gl_FragCoord.xy / uRes;
     col *= 1.0 - 0.35 * dot(p * 0.9, p * 0.9);
@@ -216,6 +282,7 @@ export default function FluidHero() {
         const uMouse = u('uMouse');
         const uRot = u('uRot');
         const uW = u('uW');
+        const uFurMix = u('uFurMix');
         const uEnergy = u('uEnergy');
         const uCenter = u('uCenter');
         const uDist = u('uDist');
@@ -286,7 +353,8 @@ export default function FluidHero() {
         let time = 0;
         let slowFrames = 0;
         function frame(now: number) {
-            const dt = Math.min((now - last) / 1000, 0.1);
+            // The first frame can be timestamped just before "last"; never step backwards.
+            const dt = Math.min(Math.max((now - last) / 1000, 0), 0.1);
             last = now;
             time += dt;
             if (!reduceMotion) clock += dt;
@@ -313,14 +381,18 @@ export default function FluidHero() {
 
             const segment = Math.floor(clock / SEGMENT);
             const morph = smoothstep(HOLD, SEGMENT, clock - segment * SEGMENT);
+            const from = FORMS[segment % FORMS.length];
+            const to = FORMS[(segment + 1) % FORMS.length];
             const weights = [0, 0, 0];
-            weights[segment % 3] += 1 - morph;
-            weights[(segment + 1) % 3] += morph;
+            weights[from.material] += 1 - morph;
+            weights[to.material] += morph;
+            const furMix = from.fur + (to.fur - from.fur) * morph;
 
             gl.uniform1f(uTime, time);
             gl.uniform2f(uMouse, smooth.x, smooth.y);
             gl.uniform2f(uRot, time * 0.15 + (smooth.x - center.x) * 1.2, -(smooth.y - center.y) * 0.9);
             gl.uniform3f(uW, weights[0], weights[1], weights[2]);
+            gl.uniform1f(uFurMix, furMix);
             gl.uniform1f(uEnergy, energy);
             gl.drawArrays(gl.TRIANGLES, 0, 3);
             if (visible && !reduceMotion) raf = requestAnimationFrame(frame);
