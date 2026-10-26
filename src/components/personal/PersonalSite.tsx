@@ -1,8 +1,10 @@
 import * as React from 'react';
-import Head from 'next/head';
+import ConsentBanner, { openConsent } from './ConsentBanner';
 import ContactForm from './ContactForm';
 import FluidHero from './FluidHero';
-import { profile } from './profile';
+import SiteHead from './SiteHead';
+import { profile, tr, Lang } from './profile';
+import { ui } from './ui';
 import styles from './personal.module.css';
 
 // Dot cursor that trails the pointer and grows over links. Only on devices with a fine pointer.
@@ -90,7 +92,7 @@ function WorkImage({ src, fallback, alt }: { src: string; fallback?: string; alt
 }
 
 // Lightweight YouTube embed: shows the thumbnail with a play button and only loads the player on click.
-function YouTubeEmbed({ id, title, children }: { id: string; title: string; children: React.ReactNode }) {
+function YouTubeEmbed({ id, title, lang, children }: { id: string; title: string; lang: Lang; children: React.ReactNode }) {
     const [playing, setPlaying] = React.useState(false);
     if (playing) {
         return (
@@ -105,7 +107,7 @@ function YouTubeEmbed({ id, title, children }: { id: string; title: string; chil
         );
     }
     return (
-        <button type="button" className={styles.workArt} onClick={() => setPlaying(true)} aria-label={`Play ${title}`} data-cursor="Play">
+        <button type="button" className={styles.workArt} onClick={() => setPlaying(true)} aria-label={`${ui[lang].play} ${title}`} data-cursor={ui[lang].playCursor}>
             {children}
             <span className={styles.playIcon} aria-hidden="true" />
         </button>
@@ -113,7 +115,7 @@ function YouTubeEmbed({ id, title, children }: { id: string; title: string; chil
 }
 
 // Round portrait with the name and role circling it.
-function Portrait() {
+function Portrait({ lang }: { lang: Lang }) {
     const [failed, setFailed] = React.useState(false);
     const imgRef = React.useRef<HTMLImageElement>(null);
     // The image can fail before React hydrates, when onError never fires; check on mount too.
@@ -122,7 +124,7 @@ function Portrait() {
         if (img?.complete && img.naturalWidth === 0) setFailed(true);
     }, []);
     if (failed) return null;
-    const ring = `${profile.name} · ${profile.role} · ${profile.location} · `;
+    const ring = `${profile.name} · ${profile.role} · ${tr(profile.location, lang)} · `;
     return (
         <figure className={`${styles.portrait} ${styles.reveal}`}>
             <svg className={styles.portraitRing} viewBox="0 0 200 200" aria-hidden="true">
@@ -140,12 +142,10 @@ function Portrait() {
     );
 }
 
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
 // "2026-10-20" → "20 Oct 2026". Formatted by hand so server and browser always render the same text.
-function formatDate(iso: string) {
+function formatDate(iso: string, lang: Lang) {
     const [year, month, day] = iso.split('-').map(Number);
-    return `${day} ${MONTHS[month - 1]} ${year}`;
+    return `${day} ${ui[lang].months[month - 1]} ${year}`;
 }
 
 function SectionLabel({ index, children }: { index: string; children: React.ReactNode }) {
@@ -157,31 +157,28 @@ function SectionLabel({ index, children }: { index: string; children: React.Reac
     );
 }
 
-export default function PersonalSite() {
+export default function PersonalSite({ lang }: { lang: Lang }) {
     useReveal();
-    const [lead, ...rest] = profile.tagline.split(', ');
-    const description = `${profile.name} — ${profile.role}. ${profile.statement}`;
+    const t = ui[lang];
+    const other: Lang = lang === 'en' ? 'pt' : 'en';
+    const [lead, ...rest] = tr(profile.tagline, lang).split(', ');
+    const sections = [
+        { id: 'about', label: t.sections.about },
+        { id: 'writing', label: t.sections.writing },
+        { id: 'speaking', label: t.sections.speaking },
+        { id: 'work', label: t.sections.work },
+        { id: 'bring', label: t.sections.bring },
+        { id: 'path', label: t.sections.path },
+        { id: 'recognition', label: t.sections.recognition },
+        ...(profile.testimonials.length > 0 ? [{ id: 'testimonials', label: t.sections.testimonials }] : []),
+        { id: 'contact', label: t.sections.contact }
+    ];
+    // Section numbers follow the order above, so hiding a section never leaves a gap.
+    const number = (id: string) => String(sections.findIndex((section) => section.id === id) + 1).padStart(2, '0');
 
     return (
         <div className={styles.site}>
-            <Head>
-                <title>{`${profile.name} — ${profile.tagline}`}</title>
-                <meta name="description" content={description} />
-                <meta property="og:title" content={profile.name} />
-                <meta property="og:description" content={description} />
-                <meta property="og:url" content={`https://${profile.domain}`} />
-                <meta name="viewport" content="width=device-width, initial-scale=1" />
-                <meta name="theme-color" content="#07070a" />
-                <link rel="icon" href="/favicon-nuno.svg" type="image/svg+xml" />
-                <link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png" />
-                <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-                <link rel="preconnect" href="https://fonts.googleapis.com" />
-                <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
-                <link
-                    rel="stylesheet"
-                    href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@300;400;500;600&family=Instrument+Serif:ital@0;1&display=swap"
-                />
-            </Head>
+            <SiteHead lang={lang} title={`${profile.name} — ${tr(profile.tagline, lang)}`} description={`${profile.name} — ${tr(profile.eyebrow, lang)}. ${tr(profile.statement, lang)}`} path="" />
             <Cursor />
 
             <header className={styles.nav}>
@@ -189,11 +186,15 @@ export default function PersonalSite() {
                     nuno<span>·</span>silva
                 </a>
                 <nav className={styles.navLinks}>
-                    <a href="#about">About</a>
-                    <a href="#work">Work</a>
-                    <a href="#path">Path</a>
-                    <a href="#contact" className={styles.navCta} data-cursor="Say hi">
-                        Let’s talk
+                    <a href="#about">{t.nav.about}</a>
+                    <a href="#writing">{t.nav.writing}</a>
+                    <a href="#speaking">{t.nav.speaking}</a>
+                    <a href="#work">{t.nav.work}</a>
+                    <a href={ui[other].home} className={styles.langSwitch} hrefLang={other} lang={other} title={t.switchTitle}>
+                        {t.switchLabel}
+                    </a>
+                    <a href="#contact" className={styles.navCta} data-cursor={t.nav.talkCursor}>
+                        {t.nav.talk}
                     </a>
                 </nav>
             </header>
@@ -203,7 +204,7 @@ export default function PersonalSite() {
                     <FluidHero />
                     <div className={styles.heroInner}>
                         <p className={styles.heroEyebrow}>
-                            {profile.role} — {profile.location}
+                            {tr(profile.eyebrow, lang)} — {tr(profile.location, lang)}
                         </p>
                         <h1 className={styles.heroTitle}>
                             <span className={styles.line}>{lead},</span>
@@ -212,13 +213,13 @@ export default function PersonalSite() {
                             </span>
                         </h1>
                         <div className={styles.heroFoot}>
-                            <p>{profile.statement}</p>
-                            <span className={styles.scrollHint}>Move. Click. Scroll.</span>
+                            <p>{tr(profile.statement, lang)}</p>
+                            <span className={styles.scrollHint}>{t.hint}</span>
                         </div>
                     </div>
                 </section>
 
-                <div className={styles.marquee} aria-label="Selected clients">
+                <div className={styles.marquee} aria-label={t.clients}>
                     <div className={styles.marqueeTrack}>
                         {[0, 1].map((copy) => (
                             <ul key={copy} aria-hidden={copy === 1 ? 'true' : undefined}>
@@ -231,30 +232,98 @@ export default function PersonalSite() {
                 </div>
 
                 <section id="about" className={styles.section}>
-                    <SectionLabel index="01">About</SectionLabel>
+                    <SectionLabel index={number('about')}>{t.sections.about}</SectionLabel>
                     <div className={styles.aboutHead}>
                         <h2 className={`${styles.statement} ${styles.reveal}`}>
-                            I make sure what agencies <em>promise</em> is what clients <em>get.</em>
+                            {t.statement[0]}
+                            <em>{t.statement[1]}</em>
+                            {t.statement[2]}
+                            <em>{t.statement[3]}</em>
                         </h2>
-                        <Portrait />
+                        <Portrait lang={lang} />
                     </div>
                     <div className={`${styles.aboutGrid} ${styles.reveal}`}>
                         {profile.about.map((paragraph) => (
-                            <p key={paragraph.slice(0, 24)}>{paragraph}</p>
+                            <p key={paragraph.en.slice(0, 24)}>{tr(paragraph, lang)}</p>
                         ))}
                     </div>
                     <dl className={styles.numbers}>
                         {profile.numbers.map((item) => (
-                            <div key={item.label} className={styles.reveal}>
-                                <dt>{item.label}</dt>
+                            <div key={item.label.en} className={styles.reveal}>
+                                <dt>{tr(item.label, lang)}</dt>
                                 <dd>{item.value}</dd>
                             </div>
                         ))}
                     </dl>
                 </section>
 
+                <section id="writing" className={`${styles.section} ${styles.writing}`}>
+                    <SectionLabel index={number('writing')}>{t.sections.writing}</SectionLabel>
+                    <div className={`${styles.writingHead} ${styles.reveal}`}>
+                        <div>
+                            <h2>{profile.newsletter.name}</h2>
+                            <p>
+                                {tr(profile.newsletter.text, lang)} {t.writtenIn}
+                            </p>
+                        </div>
+                        <a href={profile.newsletter.url} target="_blank" rel="noreferrer" className={styles.subscribe} data-cursor={t.subscribeCursor}>
+                            {t.subscribe} <span aria-hidden="true">↗</span>
+                        </a>
+                    </div>
+                    {profile.newsletter.issues.length > 0 && (
+                        <ul className={styles.issues}>
+                            {profile.newsletter.issues.map((issue) => (
+                                <li key={issue.date + issue.title} className={styles.reveal}>
+                                    <a href={issue.url} target="_blank" rel="noreferrer" lang="pt" data-cursor={t.readCursor}>
+                                        <time dateTime={issue.date}>{formatDate(issue.date, lang)}</time>
+                                        <span className={styles.issueMain}>
+                                            <strong>{issue.title}</strong>
+                                            {issue.summary && <span>{issue.summary}</span>}
+                                        </span>
+                                        <span className={styles.issueArrow} aria-hidden="true">
+                                            ↗
+                                        </span>
+                                    </a>
+                                </li>
+                            ))}
+                        </ul>
+                    )}
+                    <blockquote className={styles.reveal}>“{tr(profile.quote, lang)}”</blockquote>
+                </section>
+
+                <section id="speaking" className={styles.section}>
+                    <SectionLabel index={number('speaking')}>{t.sections.speaking}</SectionLabel>
+                    <div className={`${styles.speakingHead} ${styles.reveal}`}>
+                        <p className={styles.speakingIntro}>{tr(profile.speaking.intro, lang)}</p>
+                        <a href="#contact" className={styles.subscribe} data-cursor={t.nav.talkCursor}>
+                            {t.invite} <span aria-hidden="true">→</span>
+                        </a>
+                    </div>
+                    <h3 className={styles.subLabel}>{t.speakingTopics}</h3>
+                    <ol className={styles.bring}>
+                        {profile.speaking.topics.map((item) => (
+                            <li key={item.title.en} className={styles.reveal}>
+                                <h3>{tr(item.title, lang)}</h3>
+                                <p>{tr(item.text, lang)}</p>
+                            </li>
+                        ))}
+                    </ol>
+                    <h3 className={styles.subLabel}>{t.speakingStages}</h3>
+                    <div className={styles.recognition}>
+                        <ul className={styles.reveal}>
+                            {profile.speaking.stages.map((item) => (
+                                <li key={item.title.en + item.year}>
+                                    <span>{item.year}</span>
+                                    <strong>{tr(item.title, lang)}</strong>
+                                    <em>{tr(item.by, lang)}</em>
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                </section>
+
                 <section id="work" className={styles.section}>
-                    <SectionLabel index="02">Work I’m proud of</SectionLabel>
+                    <SectionLabel index={number('work')}>{t.sections.work}</SectionLabel>
                     <div className={styles.work}>
                         {profile.work.map((item, i) => {
                             const index = (
@@ -270,12 +339,12 @@ export default function PersonalSite() {
                                     style={{ '--hue': item.hue } as React.CSSProperties}
                                 >
                                     {item.youtube ? (
-                                        <YouTubeEmbed id={item.youtube} title={`${item.client} — ${item.title}`}>
+                                        <YouTubeEmbed id={item.youtube} title={`${item.client} — ${item.title}`} lang={lang}>
                                             {image}
                                             {index}
                                         </YouTubeEmbed>
                                     ) : (
-                                        <a href={item.url} target="_blank" rel="noreferrer" className={styles.workArt} data-cursor="View">
+                                        <a href={item.url} target="_blank" rel="noreferrer" className={styles.workArt} data-cursor={t.visitCursor}>
                                             {image}
                                             {index}
                                         </a>
@@ -287,12 +356,12 @@ export default function PersonalSite() {
                                         <h3>{item.title}</h3>
                                         <ul>
                                             {item.stats.map((stat) => (
-                                                <li key={stat}>{stat}</li>
+                                                <li key={stat.en}>{tr(stat, lang)}</li>
                                             ))}
                                         </ul>
-                                        {item.award && <p className={styles.award}>{item.award}</p>}
+                                        {item.award && <p className={styles.award}>{tr(item.award, lang)}</p>}
                                         <a href={item.url} target="_blank" rel="noreferrer" className={styles.workLink}>
-                                            {item.url.includes('youtu') ? 'Watch on YouTube' : 'Visit the project'} ↗
+                                            {item.url.includes('youtu') ? t.watch : t.visit} ↗
                                         </a>
                                     </div>
                                 </article>
@@ -301,28 +370,28 @@ export default function PersonalSite() {
                     </div>
                 </section>
 
-                <section className={styles.section}>
-                    <SectionLabel index="03">What I bring</SectionLabel>
+                <section id="bring" className={styles.section}>
+                    <SectionLabel index={number('bring')}>{t.sections.bring}</SectionLabel>
                     <ol className={styles.bring}>
                         {profile.bring.map((item) => (
-                            <li key={item.title} className={styles.reveal}>
-                                <h3>{item.title}</h3>
-                                <p>{item.text}</p>
+                            <li key={item.title.en} className={styles.reveal}>
+                                <h3>{tr(item.title, lang)}</h3>
+                                <p>{tr(item.text, lang)}</p>
                             </li>
                         ))}
                     </ol>
                 </section>
 
                 <section id="path" className={styles.section}>
-                    <SectionLabel index="04">Path</SectionLabel>
+                    <SectionLabel index={number('path')}>{t.sections.path}</SectionLabel>
                     <ul className={styles.path}>
                         {profile.experience.map((item) => (
-                            <li key={item.company + item.role} className={styles.reveal}>
-                                <span className={styles.pathPeriod}>{item.period}</span>
+                            <li key={item.company + item.role.en} className={styles.reveal}>
+                                <span className={styles.pathPeriod}>{tr(item.period, lang)}</span>
                                 <div className={styles.pathMain}>
                                     <h3>
                                         {item.url ? (
-                                            <a href={item.url} target="_blank" rel="noreferrer" className={styles.pathLink} data-cursor="Visit">
+                                            <a href={item.url} target="_blank" rel="noreferrer" className={styles.pathLink} data-cursor={t.visitCursor}>
                                                 {item.company} <span aria-hidden="true">↗</span>
                                             </a>
                                         ) : (
@@ -330,90 +399,81 @@ export default function PersonalSite() {
                                         )}
                                     </h3>
                                     <p className={styles.pathRole}>
-                                        {item.role} · {item.place}
+                                        {tr(item.role, lang)} · {item.place}
                                     </p>
                                 </div>
-                                <p className={styles.pathText}>{item.description}</p>
+                                <p className={styles.pathText}>{tr(item.description, lang)}</p>
                             </li>
                         ))}
                     </ul>
                 </section>
 
-                <section className={styles.section}>
-                    <SectionLabel index="05">Recognition</SectionLabel>
+                <section id="recognition" className={styles.section}>
+                    <SectionLabel index={number('recognition')}>{t.sections.recognition}</SectionLabel>
                     <div className={styles.recognition}>
                         <ul className={styles.reveal}>
                             {profile.recognition.map((item) => (
-                                <li key={item.title + item.year}>
+                                <li key={item.title.en + item.year}>
                                     <span>{item.year}</span>
-                                    <strong>{item.title}</strong>
+                                    <strong>{tr(item.title, lang)}</strong>
                                     <em>{item.by}</em>
                                 </li>
                             ))}
                         </ul>
                         <div className={`${styles.side} ${styles.reveal}`}>
-                            <h3>Education</h3>
+                            <h3>{t.education}</h3>
                             {profile.education.map((item) => (
                                 <p key={item.school}>
-                                    <strong>{item.degree}</strong>
+                                    <strong>{tr(item.degree, lang)}</strong>
                                     <br />
                                     {item.school}
                                 </p>
                             ))}
-                            <h3>Languages</h3>
-                            <p>{profile.languages.join(' · ')}</p>
+                            <h3>{t.languages}</h3>
+                            <p>{tr(profile.languages, lang)}</p>
                         </div>
                     </div>
                 </section>
 
-                <section className={`${styles.section} ${styles.writing}`}>
-                    <SectionLabel index="06">Writing</SectionLabel>
-                    <div className={`${styles.writingHead} ${styles.reveal}`}>
-                        <div>
-                            <h2>{profile.newsletter.name}</h2>
-                            <p>{profile.newsletter.text}</p>
-                        </div>
-                        <a href={profile.newsletter.url} target="_blank" rel="noreferrer" className={styles.subscribe} data-cursor="Subscribe">
-                            Subscribe on LinkedIn <span aria-hidden="true">↗</span>
-                        </a>
-                    </div>
-                    {profile.newsletter.issues.length > 0 && (
-                        <ul className={styles.issues}>
-                            {profile.newsletter.issues.map((issue) => (
-                                <li key={issue.date + issue.title} className={styles.reveal}>
-                                    <a href={issue.url} target="_blank" rel="noreferrer" data-cursor="Read">
-                                        <time dateTime={issue.date}>{formatDate(issue.date)}</time>
-                                        <span className={styles.issueMain}>
-                                            <strong>{issue.title}</strong>
-                                            {issue.summary && <span>{issue.summary}</span>}
-                                        </span>
-                                        <span className={styles.issueArrow} aria-hidden="true">
-                                            ↗
-                                        </span>
-                                    </a>
-                                </li>
+                {profile.testimonials.length > 0 && (
+                    <section id="testimonials" className={styles.section}>
+                        <SectionLabel index={number('testimonials')}>{t.sections.testimonials}</SectionLabel>
+                        <div className={styles.testimonials}>
+                            {profile.testimonials.map((item) => (
+                                <figure key={item.name} className={styles.reveal}>
+                                    <blockquote>“{item.quote}”</blockquote>
+                                    <figcaption>
+                                        <strong>{item.name}</strong>
+                                        <span>{item.role}</span>
+                                    </figcaption>
+                                </figure>
                             ))}
-                        </ul>
-                    )}
-                    <blockquote className={styles.reveal}>“{profile.quote}”</blockquote>
-                </section>
+                        </div>
+                    </section>
+                )}
             </main>
 
             <footer id="contact" className={styles.contact}>
-                <SectionLabel index="07">Contact</SectionLabel>
+                <SectionLabel index={number('contact')}>{t.sections.contact}</SectionLabel>
                 <h2 className={styles.contactBig}>
-                    Let’s <em>talk.</em>
+                    {t.contactTitle[0]}
+                    <em>{t.contactTitle[1]}</em>
                 </h2>
-                <ContactForm />
+                <ContactForm lang={lang} />
                 <div className={styles.contactRow}>
                     <a href={profile.links.linkedin} target="_blank" rel="noreferrer">
                         LinkedIn ↗
                     </a>
+                    <a href={t.privacyPath}>{t.footerPrivacy}</a>
+                    <button type="button" className={styles.footerButton} onClick={openConsent}>
+                        {t.consent.manage}
+                    </button>
                     <span>
-                        © {new Date().getFullYear()} {profile.name} · {profile.location}
+                        © {new Date().getFullYear()} {profile.name} · {tr(profile.location, lang)}
                     </span>
                 </div>
             </footer>
+            <ConsentBanner lang={lang} />
         </div>
     );
 }

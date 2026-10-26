@@ -9,7 +9,7 @@ import { seoGenerateTitle, seoGenerateMetaTags, seoGenerateMetaDescription } fro
 
 function Page(props) {
     if (props.personal) {
-        return <PersonalSite />;
+        return <PersonalSite lang="en" />;
     }
     const { page, site } = props;
     const { modelName } = page.__metadata;

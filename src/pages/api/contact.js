@@ -45,7 +45,8 @@ export default async function handler(req, res) {
     }
 
     const details = [
-        `Topic: ${topic.label}`,
+        `Topic: ${topic.label.en}`,
+        `Language: ${body.lang === 'pt' ? 'Portuguese' : 'English'}`,
         `Name: ${name}`,
         `Email: ${email}`,
         company && `Company: ${company}`,
