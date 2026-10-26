@@ -1203,6 +1203,15 @@
 .quotes {
     overflow: hidden;
     padding: 0 0 8px;
+    cursor: grab;
+    /* Vertical swipes still scroll the page; horizontal drags move the strip. */
+    touch-action: pan-y;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+.quotesDragging {
+    cursor: grabbing;
 }
 
 .quotesTrack {
@@ -1211,12 +1220,7 @@
     width: max-content;
     /* Trailing space equal to the gap, so moving by half the track loops seamlessly. */
     padding-right: 24px;
-    animation: marquee 120s linear infinite;
-}
-
-.quotes:hover .quotesTrack,
-.quotes:focus-within .quotesTrack {
-    animation-play-state: paused;
+    will-change: transform;
 }
 
 .quotesTrack figure {
@@ -1404,15 +1408,11 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .quotes {
-        overflow-x: auto;
-    }
     .reveal {
         opacity: 1;
         transform: none;
     }
     .marqueeTrack,
-    .quotesTrack,
     .portraitRing,
     .line,
     .heroEyebrow,

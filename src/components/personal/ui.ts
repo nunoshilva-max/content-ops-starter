@@ -65,7 +65,8 @@ export const ui = {
             manage: 'Cookie settings'
         },
         footerPrivacy: 'Privacy',
-        allRecommendations: 'All recommendations on LinkedIn'
+        allRecommendations: 'All recommendations on LinkedIn',
+        dragCursor: 'Drag'
     },
     pt: {
         home: '/pt/',
@@ -130,7 +131,8 @@ export const ui = {
             manage: 'Definições de cookies'
         },
         footerPrivacy: 'Privacidade',
-        allRecommendations: 'Todas as recomendações no LinkedIn'
+        allRecommendations: 'Todas as recomendações no LinkedIn',
+        dragCursor: 'Arrastar'
     }
 } satisfies Record<Lang, unknown>;
 
