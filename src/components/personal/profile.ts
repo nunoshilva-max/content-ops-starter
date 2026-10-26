@@ -6,6 +6,7 @@ export type Experience = {
     period: string;
     place: string;
     description: string;
+    url?: string;
 };
 
 export type Issue = {
@@ -113,6 +114,7 @@ export const profile = {
         {
             role: 'Engagement Manager',
             company: 'WYcreative',
+            url: 'https://wycreative.com/',
             period: '2026 — Now',
             place: 'Oeiras',
             description: 'Client & Partnership team at WYgroup. Making sure projects deliver what was agreed — on time, scope and quality — and spotting opportunities to grow each relationship.'

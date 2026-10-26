@@ -320,7 +320,15 @@ export default function PersonalSite() {
                             <li key={item.company + item.role} className={styles.reveal}>
                                 <span className={styles.pathPeriod}>{item.period}</span>
                                 <div className={styles.pathMain}>
-                                    <h3>{item.company}</h3>
+                                    <h3>
+                                        {item.url ? (
+                                            <a href={item.url} target="_blank" rel="noreferrer" className={styles.pathLink} data-cursor="Visit">
+                                                {item.company} <span aria-hidden="true">↗</span>
+                                            </a>
+                                        ) : (
+                                            item.company
+                                        )}
+                                    </h3>
                                     <p className={styles.pathRole}>
                                         {item.role} · {item.place}
                                     </p>

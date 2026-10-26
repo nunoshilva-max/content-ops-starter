@@ -727,6 +727,19 @@
     transition: color 0.3s;
 }
 
+.pathLink span {
+    display: inline-block;
+    font-size: 0.55em;
+    vertical-align: super;
+    color: var(--muted);
+    transition: transform 0.4s cubic-bezier(0.2, 0.9, 0.2, 1), color 0.3s;
+}
+
+.pathLink:hover span {
+    transform: translate(3px, -3px);
+    color: var(--accent);
+}
+
 .pathRole {
     margin-top: 8px;
     color: var(--muted);
