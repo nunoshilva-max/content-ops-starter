@@ -9,6 +9,7 @@ export const ui = {
         switchTitle: 'Ver em português',
         nav: { about: 'About', writing: 'Writing', speaking: 'Speaking', work: 'Work', talk: 'Let’s talk', talkCursor: 'Say hi' },
         hint: 'Move. Click. Scroll.',
+        heroPhrases: ['There is no wave separated from the ocean.', 'The wave IS the ocean.', 'Technology in service of people.'],
         clients: 'Selected clients',
         sections: {
             about: 'About',
@@ -75,6 +76,7 @@ export const ui = {
         switchTitle: 'View in English',
         nav: { about: 'Sobre', writing: 'Escrita', speaking: 'Palestras', work: 'Trabalho', talk: 'Vamos falar', talkCursor: 'Olá' },
         hint: 'Mexa. Clique. Desça.',
+        heroPhrases: ['Não há onda separada do oceano.', 'A onda É o oceano.', 'A tecnologia ao serviço das pessoas.'],
         clients: 'Alguns clientes',
         sections: {
             about: 'Sobre',

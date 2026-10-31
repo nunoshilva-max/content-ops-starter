@@ -1,22 +1,16 @@
 import * as React from 'react';
 import styles from './personal.module.css';
 
-// A raymarched liquid object for the hero. It cycles through four forms:
-// spiky black latex (ferrofluid spikes that stand up towards the cursor),
-// long-haired pink plush that turns shock green, and clear water. The blob
-// leans and reaches for the pointer, fast movement excites it (and ruffles the
-// fur), and a click skips to the next form.
+// "The wave IS the ocean": the hero is a set of liquid droplets, one per person. At rest
+// they float apart. Move the pointer slowly and they gather around it and merge into one
+// body of water; move it fast and the body breaks apart again (technology running over
+// people). A click sends a ripple through the liquid and shows one of `phrases` for a
+// moment; scrolling down lets the drops sink. Droplet physics run in JavaScript and the
+// liquid is raymarched as a smooth union of spheres in the fragment shader.
 
-const HOLD = 5;
-const MORPH = 2.2;
-const SEGMENT = HOLD + MORPH;
-// The cycle: material 0 latex, 1 plush, 2 water; fur 0 is pink, 1 is green.
-const FORMS = [
-    { material: 0, fur: 0 },
-    { material: 1, fur: 0 },
-    { material: 1, fur: 1 },
-    { material: 2, fur: 1 }
-];
+const MAX_DROPS = 22;
+const FOCAL = 1.6;
+const DIST = 9;
 
 const VERTEX = `
 attribute vec2 aPos;
@@ -27,16 +21,15 @@ const FRAGMENT = `
 precision highp float;
 uniform vec2 uRes;
 uniform float uTime;
-uniform vec2 uMouse;
-uniform vec2 uRot;
-uniform vec3 uW;
-uniform float uFurMix;
-uniform float uEnergy;
-uniform vec2 uCenter;
-uniform float uDist;
+uniform vec4 uDrops[${MAX_DROPS}];
+uniform int uCount;
+uniform float uBlend;
+uniform vec4 uBound;
+uniform vec4 uClick;
+uniform float uCohesion;
 
-mat3 R;
-vec3 mDir;
+const float FOCAL = ${FOCAL.toFixed(2)};
+const float DIST = ${DIST.toFixed(2)};
 
 float hash(vec3 p) {
     p = fract(p * 0.3183099 + 0.1);
@@ -50,28 +43,32 @@ float noise(vec3 x) {
                mix(mix(hash(i + vec3(0, 0, 1)), hash(i + vec3(1, 0, 1)), f.x), mix(hash(i + vec3(0, 1, 1)), hash(i + vec3(1, 1, 1)), f.x), f.y), f.z);
 }
 
-float shape(vec3 p) {
-    vec3 q = R * p;
-    float len = length(q);
-    vec3 n = q / max(len, 1e-4);
-    float reach = exp((dot(n, mDir) - 1.0) * 3.0);
+// Smooth union: the larger k, the more neighbouring drops melt into each other.
+float smin(float a, float b, float k) {
+    float h = max(k - abs(a - b), 0.0) / k;
+    return min(a, b) - h * h * k * 0.25;
+}
 
-    // Latex: ferrofluid spikes, longest on the side facing the cursor.
-    vec3 s = n * 6.2 + 0.55 * vec3(noise(n * 2.0 + uTime * 0.35), noise(n * 2.0 + 7.1 - uTime * 0.3), noise(n * 2.0 + 3.3 + uTime * 0.25));
-    float spikes = pow(abs(sin(s.x) * sin(s.y) * sin(s.z)), 3.2);
-    float latex = spikes * (0.22 + 0.5 * reach + 0.25 * uEnergy);
-
-    // Water: a wobbling drop with ripples running out from the cursor side.
-    float water = sin(n.x * 4.0 + uTime * 1.5) * sin(n.y * 3.5 - uTime * 1.2) * sin(n.z * 3.0 + uTime) * 0.1
-                + sin(dot(n, mDir) * 16.0 - uTime * 5.0) * 0.014 * (1.0 + 3.0 * uEnergy);
-
-    float r = 1.0 + 0.03 * sin(uTime * 1.3) + reach * (0.12 + 0.12 * uEnergy);
-    return len - r - uW.x * latex - uW.z * water;
+float liquid(vec3 p) {
+    float d = 1e3;
+    for (int i = 0; i < ${MAX_DROPS}; i++) {
+        if (i >= uCount) break;
+        vec4 drop = uDrops[i];
+        d = smin(d, length(p - drop.xyz) - drop.w, uBlend);
+    }
+    // A slight tremble on the surface, stronger when the drops are together.
+    d += sin(p.x * 4.0 + uTime * 1.3) * sin(p.y * 3.5 - uTime * 1.1) * sin(p.z * 4.0 + uTime * 0.9) * (0.015 + 0.03 * uCohesion);
+    // The ripple from the last click, spreading out from where it landed.
+    if (uClick.w < 4.0) {
+        float r = length(p - uClick.xyz);
+        d += sin(r * 9.0 - uClick.w * 9.0) * 0.045 * exp(-uClick.w * 1.3) * exp(-r * 0.35);
+    }
+    return d;
 }
 
 vec3 normalAt(vec3 p) {
-    const vec2 e = vec2(0.0015, -0.0015);
-    return normalize(e.xyy * shape(p + e.xyy) + e.yyx * shape(p + e.yyx) + e.yxy * shape(p + e.yxy) + e.xxx * shape(p + e.xxx));
+    const vec2 e = vec2(0.002, -0.002);
+    return normalize(e.xyy * liquid(p + e.xyy) + e.yyx * liquid(p + e.yyx) + e.yxy * liquid(p + e.yxy) + e.xxx * liquid(p + e.xxx));
 }
 
 // Studio lighting: a white softbox above, pink on the right, green on the left.
@@ -84,147 +81,63 @@ vec3 env(vec3 d) {
     return c;
 }
 
-// Plush: long fur traced as a volume. Strands are cells of a fine noise pattern on the
-// sphere of directions; they thin out towards the tips, gather in clumps and bend
-// with gravity, the cursor and a slow breeze, more the further they are from the root.
-const float FUR = 0.42;
-const vec3 PINK = vec3(1.0, 0.36, 0.72);
-const vec3 GREEN = vec3(0.36, 1.0, 0.1);
-
-float coreRadius(vec3 n) {
-    return 0.82 + (noise(n * 1.6 + uTime * 0.12) - 0.5) * 0.2;
-}
-
-vec4 furVolume(vec3 ro, vec3 rd) {
-    float len = FUR * uW.y;
-    float outer = 0.95 + len;
-    float b = dot(ro, rd);
-    float h = b * b - dot(ro, ro) + outer * outer;
-    if (h < 0.0) return vec4(0.0);
-    float t = -b - sqrt(h);
-    float tEnd = -b + sqrt(h);
-    vec3 furCol = mix(PINK, GREEN, uFurMix);
-    vec3 gravity = R * vec3(0.0, -1.0, 0.0);
-    vec3 L = normalize(R * vec3(-0.4, 0.85, 0.6));
-    vec3 col = vec3(0.0);
-    float alpha = 0.0;
-    for (int i = 0; i < 110; i++) {
-        vec3 q = R * (ro + rd * t);
-        float r = length(q);
-        vec3 n = q / r;
-        float rc = coreRadius(n);
-        float hgt = (r - rc) / max(len, 1e-3);
-        if (hgt < 0.0) {
-            // The dense undercoat at the roots.
-            col += (1.0 - alpha) * furCol * 0.07;
-            alpha = 1.0;
-            break;
-        }
-        if (hgt < 1.0) {
-            vec3 toCursor = mDir - n * dot(n, mDir);
-            vec3 breeze = vec3(sin(uTime * 0.8 + n.y * 4.0), 0.0, cos(uTime * 0.7 + n.x * 4.0));
-            vec3 bend = gravity * 0.5 + toCursor * (0.35 + 0.6 * uEnergy) + breeze * (0.08 + 0.25 * uEnergy);
-            vec3 sn = normalize(n + bend * hgt * hgt * 0.45);
-            float clump = noise(sn * 16.0);
-            float strand = noise(sn * 72.0 + clump * 3.0);
-            float edge = 0.4 + 0.55 * hgt;
-            float density = smoothstep(edge, edge + 0.08, strand * 0.72 + clump * 0.38);
-            if (density > 0.0) {
-                float rootShade = 0.18 + 0.82 * pow(hgt, 0.7);
-                float diffuse = clamp(dot(n, L) * 0.5 + 0.55, 0.0, 1.0);
-                float sheen = pow(1.0 - abs(dot(rd, n)), 2.5) * hgt;
-                vec3 c = furCol * rootShade * (0.4 + 1.05 * diffuse) + mix(furCol, vec3(1.0), 0.55) * sheen * 0.5;
-                float a = density * 0.42;
-                col += (1.0 - alpha) * a * c;
-                alpha += (1.0 - alpha) * a;
-                if (alpha > 0.97) break;
-            }
-        }
-        // Small steps through the fur, larger ones through the empty space above the tips.
-        t += max(0.012, (hgt - 1.0) * len);
-        if (t > tEnd) break;
-    }
-    return vec4(col, alpha);
-}
-
-vec3 backdrop(vec2 p) {
+vec3 backdrop(vec2 p, vec2 pool) {
     vec3 c = vec3(0.027, 0.027, 0.035);
-    vec3 tint = uW.x * vec3(0.4, 0.25, 1.0) + uW.y * vec3(1.0, 0.25, 0.65) + uW.z * vec3(0.2, 0.65, 1.0);
-    vec2 d = p - uCenter;
-    float pool = exp(-dot(d, d) * 2.5);
-    c += tint * pool * 0.16;
-    // Fine diagonal hairlines; they bend visibly through the water.
+    vec2 d = p - pool;
+    float glow = exp(-dot(d, d) * 2.2);
+    c += mix(vec3(0.3, 0.25, 0.9), vec3(0.2, 0.6, 1.0), uCohesion) * glow * 0.16;
+    // Fine diagonal hairlines; they bend visibly through the liquid.
     float lines = smoothstep(0.93, 1.0, abs(sin((p.x * 0.6 + p.y) * 42.0)));
-    c += lines * 0.06 * pool;
+    c += lines * 0.06 * glow;
     return c;
 }
 
 void main() {
     vec2 p = (gl_FragCoord.xy - 0.5 * uRes) / uRes.y;
-    vec3 col = backdrop(p);
+    vec3 ro = vec3(0.0, 0.0, DIST);
+    vec3 rd = normalize(vec3(p, -FOCAL));
+    vec2 pool = uBound.xy * FOCAL / (DIST - uBound.z);
+    vec3 col = backdrop(p, pool);
 
-    float cy = cos(uRot.x), sy = sin(uRot.x), cx = cos(uRot.y), sx = sin(uRot.y);
-    R = mat3(cy, 0.0, -sy, 0.0, 1.0, 0.0, sy, 0.0, cy) * mat3(1.0, 0.0, 0.0, 0.0, cx, sx, 0.0, -sx, cx);
-    mDir = normalize(R * vec3((uMouse - uCenter) * 3.0, 0.8));
-
-    vec3 ro = vec3(0.0, 0.0, uDist);
-    vec3 rd = normalize(vec3(p - uCenter, -1.6));
-
-    // Latex and water: a raymarched surface, only inside the bounding sphere.
-    float surfaceWeight = uW.x + uW.z;
-    vec3 surface = col;
-    float b = dot(ro, rd);
-    float h = b * b - dot(ro, ro) + 2.2 * 2.2;
-    if (surfaceWeight > 0.01 && h > 0.0) {
-        float t = -b - sqrt(h);
+    // Only march inside the sphere that bounds all the drops.
+    vec3 oc = ro - uBound.xyz;
+    float b = dot(oc, rd);
+    float h = b * b - dot(oc, oc) + uBound.w * uBound.w;
+    if (h > 0.0) {
+        float t = max(-b - sqrt(h), 0.0);
         float tEnd = -b + sqrt(h);
-        float stepScale = mix(0.65, 0.22, uW.x / surfaceWeight);
         bool hit = false;
-        for (int i = 0; i < 140; i++) {
-            float d = shape(ro + rd * t);
-            if (d < 0.001 * t) { hit = true; break; }
-            t += d * stepScale;
+        for (int i = 0; i < 96; i++) {
+            float d = liquid(ro + rd * t);
+            if (d < 0.0015 * t) { hit = true; break; }
+            t += d * 0.8;
             if (t > tEnd) break;
         }
-
         if (hit) {
             vec3 pos = ro + rd * t;
             vec3 nor = normalAt(pos);
-            vec3 q = R * pos;
             float ndv = clamp(dot(nor, -rd), 0.0, 1.0);
-            float fres = pow(1.0 - ndv, 5.0);
+            float fres = pow(1.0 - ndv, 4.0);
             vec3 L = normalize(vec3(-0.4, 0.85, 0.6));
             vec3 H = normalize(L - rd);
             vec3 refl = reflect(rd, nor);
-
-            vec3 latex = vec3(0.012, 0.01, 0.02) * (0.3 + max(dot(nor, L), 0.0));
-            latex += env(refl) * (0.1 + 0.9 * fres);
-            latex += mix(vec3(1.0, 0.3, 0.7), vec3(0.4, 0.3, 1.0), 0.5 + 0.5 * nor.y) * pow(1.0 - ndv, 3.0) * 0.35;
-            latex += pow(max(dot(nor, H), 0.0), 160.0) * 2.2;
-
             vec3 rr = refract(rd, nor, 0.75);
-            float caustic = pow(noise(q * 3.0 + uTime * 0.6), 4.0);
-            vec3 water = backdrop(p + rr.xy * 0.4) * vec3(0.8, 1.0, 1.15) + env(rr) * 0.12;
-            water += vec3(0.3, 0.75, 1.0) * (0.05 + caustic * 0.6);
-            water = mix(water, env(refl), 0.08 + 0.92 * fres);
-            water += pow(max(dot(nor, H), 0.0), 240.0) * 2.8;
 
-            vec3 obj = (uW.x * latex + uW.z * water) / surfaceWeight;
-            surface = obj / (1.0 + obj * 0.3);
+            float caustic = pow(noise(pos * 2.5 + uTime * 0.5), 4.0);
+            vec3 tint = mix(vec3(0.2, 0.55, 1.0), vec3(0.6, 0.35, 1.0), 0.5 + 0.5 * nor.y);
+            vec3 liquidCol = backdrop(p + rr.xy * 0.35, pool) * vec3(0.8, 1.0, 1.15) + env(rr) * 0.12;
+            liquidCol += tint * (0.05 + caustic * 0.55);
+            // A thin-film sheen at grazing angles, like light on a soap bubble.
+            vec3 film = 0.5 + 0.5 * cos(6.2831 * (fres * 1.3 + ndv * 0.5 + vec3(0.0, 0.33, 0.67)));
+            liquidCol = mix(liquidCol, env(refl), 0.08 + 0.9 * fres) + film * fres * 0.3;
+            liquidCol += pow(max(dot(nor, H), 0.0), 220.0) * 2.6;
+            col = liquidCol / (1.0 + liquidCol * 0.3);
         }
     }
 
-    // Plush: the fur grows in as it fades in, and is composited over the backdrop.
-    vec3 plush = col;
-    if (uW.y > 0.01) {
-        vec4 fur = furVolume(ro, rd);
-        plush = col * (1.0 - fur.a) + fur.rgb / (1.0 + fur.rgb * 0.3);
-    }
-    col = surfaceWeight * surface + uW.y * plush;
-
     vec2 uv = gl_FragCoord.xy / uRes;
     col *= 1.0 - 0.35 * dot(p * 0.9, p * 0.9);
-    col = mix(vec3(0.027, 0.027, 0.035), col, smoothstep(0.0, 0.25, uv.y));
+    col = mix(vec3(0.027, 0.027, 0.035), col, smoothstep(0.0, 0.2, uv.y));
     col += (hash(vec3(gl_FragCoord.xy, uTime)) - 0.5) * 0.02;
     gl_FragColor = vec4(col, 1.0);
 }
@@ -241,17 +154,41 @@ function compile(gl: WebGLRenderingContext, type: number, source: string) {
     return shader;
 }
 
-const smoothstep = (a: number, b: number, x: number) => {
-    const t = Math.min(Math.max((x - a) / (b - a), 0), 1);
-    return t * t * (3 - 2 * t);
+// Deterministic pseudo-random numbers, so every visit starts with the same arrangement.
+function seeded(seed: number) {
+    return () => {
+        seed = (seed * 16807) % 2147483647;
+        return (seed - 1) / 2147483646;
+    };
+}
+
+type Drop = {
+    x: number;
+    y: number;
+    z: number;
+    vx: number;
+    vy: number;
+    vz: number;
+    r: number;
+    // Resting place, relative to the centre of the cloud.
+    hx: number;
+    hy: number;
+    hz: number;
+    // Place in the gathered body, relative to the pointer.
+    gx: number;
+    gy: number;
+    gz: number;
+    phase: number;
 };
 
-export default function FluidHero() {
+export default function FluidHero({ phrases }: { phrases: string[] }) {
     const canvasRef = React.useRef<HTMLCanvasElement>(null);
+    const phraseRef = React.useRef<HTMLSpanElement>(null);
     const [fallback, setFallback] = React.useState(false);
 
     React.useEffect(() => {
         const canvas = canvasRef.current;
+        const phraseEl = phraseRef.current;
         const gl = canvas?.getContext('webgl', { antialias: false, alpha: false, powerPreference: 'high-performance' });
         if (!gl) {
             setFallback(true);
@@ -279,18 +216,22 @@ export default function FluidHero() {
         const u = (name: string) => gl.getUniformLocation(program, name);
         const uRes = u('uRes');
         const uTime = u('uTime');
-        const uMouse = u('uMouse');
-        const uRot = u('uRot');
-        const uW = u('uW');
-        const uFurMix = u('uFurMix');
-        const uEnergy = u('uEnergy');
-        const uCenter = u('uCenter');
-        const uDist = u('uDist');
+        const uDrops = u('uDrops');
+        const uCount = u('uCount');
+        const uBlend = u('uBlend');
+        const uBound = u('uBound');
+        const uClick = u('uClick');
+        const uCohesion = u('uCohesion');
 
         const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        const narrow = window.innerWidth < 720;
+        const count = narrow ? 14 : MAX_DROPS;
         // Raymarching is expensive: render below native resolution and lower it further if frames run slow.
-        let scale = Math.min(window.devicePixelRatio || 1, 1.5) * 0.55;
-        const center = { x: 0, y: 0 };
+        let scale = Math.min(window.devicePixelRatio || 1, 1.5) * (narrow ? 0.5 : 0.6);
+
+        // Screen space (x in [-aspect/2, aspect/2], y in [-0.5, 0.5]) ↔ the plane z = 0 in the scene.
+        const toWorld = DIST / FOCAL;
+        const cloud = { x: 0, y: 0, spread: 1 };
 
         const resize = () => {
             const rect = canvas.getBoundingClientRect();
@@ -299,13 +240,44 @@ export default function FluidHero() {
             gl.viewport(0, 0, canvas.width, canvas.height);
             gl.uniform2f(uRes, canvas.width, canvas.height);
             const aspect = rect.width / rect.height;
-            // Desktop: upper right, beside the headline. Narrow screens: centred above it.
-            center.x = aspect > 1 ? aspect * 0.2 : 0;
-            center.y = aspect > 1 ? 0.12 : 0.2;
-            gl.uniform2f(uCenter, center.x, center.y);
-            gl.uniform1f(uDist, aspect > 1 ? 6.3 : 11);
+            // Desktop: the drops rest to the upper right of the headline. Narrow screens: above it.
+            cloud.x = (aspect > 1 ? aspect * 0.2 : 0) * toWorld;
+            cloud.y = (aspect > 1 ? 0.1 : 0.2) * toWorld;
+            cloud.spread = aspect > 1 ? 1 : 0.62;
         };
         resize();
+
+        const random = seeded(7);
+        const drops: Drop[] = Array.from({ length: count }, () => {
+            const angle = random() * Math.PI * 2;
+            const radius = Math.sqrt(random());
+            const ga = random() * Math.PI * 2;
+            const gb = Math.acos(random() * 2 - 1);
+            const gd = 0.25 + random() * 0.45;
+            return {
+                x: 0,
+                y: 0,
+                z: 0,
+                vx: 0,
+                vy: 0,
+                vz: 0,
+                r: 0.18 + random() * 0.26,
+                hx: Math.cos(angle) * radius * 2.0,
+                hy: Math.sin(angle) * radius * 1.35,
+                hz: (random() - 0.5) * 1.4,
+                gx: Math.sin(gb) * Math.cos(ga) * gd,
+                gy: Math.sin(gb) * Math.sin(ga) * gd,
+                gz: Math.cos(gb) * gd * 0.6,
+                phase: random() * Math.PI * 2
+            };
+        });
+        // Start at rest; with reduced motion, start (and stay) gathered as one body of water.
+        for (const d of drops) {
+            d.x = cloud.x + (reduceMotion ? d.gx : d.hx) * cloud.spread;
+            d.y = cloud.y + (reduceMotion ? d.gy : d.hy) * cloud.spread;
+            d.z = reduceMotion ? d.gz : d.hz;
+        }
+
         // Resizing clears the canvas, so draw again (needed when motion is reduced and the loop is idle).
         const onResize = () => {
             resize();
@@ -313,25 +285,53 @@ export default function FluidHero() {
         };
         window.addEventListener('resize', onResize);
 
-        // Pointer in shader space: x in [-aspect/2, aspect/2], y in [-0.5, 0.5].
-        const target = { x: 0, y: 0 };
-        const smooth = { x: 0, y: 0 };
-        let energy = 0;
-        let lastMove = -Infinity;
-        const onPointer = (e: PointerEvent) => {
+        const pointer = { x: 0, y: 0, active: false, lastMove: -Infinity };
+        const setPointer = (clientX: number, clientY: number) => {
             const rect = canvas.getBoundingClientRect();
-            target.x = (e.clientX - rect.left - rect.width / 2) / rect.height;
-            target.y = (rect.height / 2 - (e.clientY - rect.top)) / rect.height;
-            lastMove = performance.now();
+            if (clientY < rect.top || clientY > rect.bottom) return;
+            pointer.x = ((clientX - rect.left - rect.width / 2) / rect.height) * toWorld;
+            pointer.y = ((rect.height / 2 - (clientY - rect.top)) / rect.height) * toWorld;
+            pointer.lastMove = performance.now();
+            pointer.active = true;
+        };
+        const onPointer = (e: PointerEvent) => setPointer(e.clientX, e.clientY);
+        // On touch screens the page scrolls under the finger, so follow touches directly.
+        const onTouch = (e: TouchEvent) => {
+            const touch = e.touches[0];
+            if (touch) setPointer(touch.clientX, touch.clientY);
         };
         window.addEventListener('pointermove', onPointer, { passive: true });
+        window.addEventListener('touchstart', onTouch, { passive: true });
+        window.addEventListener('touchmove', onTouch, { passive: true });
 
-        // The material clock: hold each form, then morph into the next. A click jumps to the next morph.
-        let clock = 0;
-        const onClick = () => {
-            const into = clock % SEGMENT;
-            if (into < HOLD) clock += HOLD - into;
-            energy = 1;
+        // A click (or tap) sends a ripple out from the pointer and shows the next phrase there.
+        const click = { x: 0, y: 0, z: 0, at: -Infinity };
+        let phraseIndex = 0;
+        let phraseTimer = 0;
+        const onClick = (e: PointerEvent) => {
+            setPointer(e.clientX, e.clientY);
+            click.x = pointer.x;
+            click.y = pointer.y;
+            click.z = 0;
+            click.at = performance.now();
+            for (const d of drops) {
+                const dx = d.x - click.x;
+                const dy = d.y - click.y;
+                const dist = Math.hypot(dx, dy) || 1;
+                const push = Math.max(0, 1 - dist / 3) * 2.2;
+                d.vx += (dx / dist) * push;
+                d.vy += (dy / dist) * push;
+            }
+            if (phraseEl && phrases.length > 0) {
+                const rect = canvas.getBoundingClientRect();
+                phraseEl.textContent = phrases[phraseIndex % phrases.length];
+                phraseIndex++;
+                phraseEl.style.left = `${Math.min(Math.max(e.clientX - rect.left, 160), rect.width - 160)}px`;
+                phraseEl.style.top = `${e.clientY - rect.top}px`;
+                phraseEl.classList.add(styles.heroPhraseOn);
+                window.clearTimeout(phraseTimer);
+                phraseTimer = window.setTimeout(() => phraseEl.classList.remove(styles.heroPhraseOn), 2600);
+            }
         };
         canvas.addEventListener('pointerdown', onClick);
 
@@ -349,17 +349,21 @@ export default function FluidHero() {
         });
         observer.observe(canvas);
 
+        const dropData = new Float32Array(MAX_DROPS * 4);
+        const smooth = { x: 0, y: 0 };
+        let cohesion = reduceMotion ? 1 : 0;
+        let scatteredUntil = -Infinity;
         let last = performance.now();
         let time = 0;
         let slowFrames = 0;
+
         function frame(now: number) {
             // The first frame can be timestamped just before "last"; never step backwards.
-            const dt = Math.min(Math.max((now - last) / 1000, 0), 0.1);
+            const dt = Math.min(Math.max((now - last) / 1000, 0), 0.05);
             last = now;
             time += dt;
-            if (!reduceMotion) clock += dt;
 
-            if (dt > 0.028 && scale > 0.3) slowFrames++;
+            if (dt > 0.03 && scale > 0.3) slowFrames++;
             else slowFrames = Math.max(0, slowFrames - 1);
             if (slowFrames > 30) {
                 slowFrames = 0;
@@ -367,33 +371,82 @@ export default function FluidHero() {
                 resize();
             }
 
-            // When the pointer rests, drift slowly around the object so it keeps moving.
-            if (now - lastMove > 3000) {
-                target.x = center.x + Math.sin(time * 0.4) * 0.35;
-                target.y = center.y + Math.sin(time * 0.55) * 0.25;
-            }
+            // Pointer speed decides between gathering (slow) and scattering (fast).
             const px = smooth.x;
             const py = smooth.y;
-            smooth.x += (target.x - smooth.x) * 0.08;
-            smooth.y += (target.y - smooth.y) * 0.08;
-            const speed = Math.hypot(smooth.x - px, smooth.y - py) / Math.max(dt, 0.001);
-            energy += (Math.min(speed * 0.5, 1) - energy) * (speed * 0.5 > energy ? 0.25 : 0.04);
+            smooth.x += (pointer.x - smooth.x) * Math.min(dt * 10, 1);
+            smooth.y += (pointer.y - smooth.y) * Math.min(dt * 10, 1);
+            const speed = dt > 0 ? Math.hypot(smooth.x - px, smooth.y - py) / dt : 0;
+            const recent = pointer.active && now - pointer.lastMove < 2500;
+            // A fast move breaks the body apart, and the drops stay apart for a moment before regrouping.
+            if (speed > 5) scatteredUntil = now + 1400;
+            const want = reduceMotion ? 1 : recent && now > scatteredUntil ? 1 : 0;
+            cohesion += (want - cohesion) * Math.min(dt * (want > cohesion ? 1.2 : 6), 1);
 
-            const segment = Math.floor(clock / SEGMENT);
-            const morph = smoothstep(HOLD, SEGMENT, clock - segment * SEGMENT);
-            const from = FORMS[segment % FORMS.length];
-            const to = FORMS[(segment + 1) % FORMS.length];
-            const weights = [0, 0, 0];
-            weights[from.material] += 1 - morph;
-            weights[to.material] += morph;
-            const furMix = from.fur + (to.fur - from.fur) * morph;
+            if (speed > 5) {
+                for (const d of drops) {
+                    const dx = d.x - smooth.x;
+                    const dy = d.y - smooth.y;
+                    const dist = Math.hypot(dx, dy) || 1;
+                    const push = Math.max(0, 1 - dist / 3.5) * Math.min(speed, 40) * 0.14;
+                    // Away from the pointer, with a random sideways kick so the drops fly apart.
+                    d.vx += (dx / dist) * push + (Math.random() - 0.5) * push * 0.8;
+                    d.vy += (dy / dist) * push + (Math.random() - 0.5) * push * 0.8;
+                    d.vz += (Math.random() - 0.5) * push * 0.5;
+                }
+            }
 
+            // Scrolling past the hero lets the drops sink.
+            const sink = Math.min(Math.max(window.scrollY / Math.max(window.innerHeight, 1), 0), 1);
+            const gatherX = recent ? smooth.x : cloud.x;
+            const gatherY = recent ? smooth.y : cloud.y;
+
+            let minX = Infinity;
+            let minY = Infinity;
+            let minZ = Infinity;
+            let maxX = -Infinity;
+            let maxY = -Infinity;
+            let maxZ = -Infinity;
+            drops.forEach((d, i) => {
+                const floatX = Math.sin(time * 0.31 + d.phase) * 0.22;
+                const floatY = Math.cos(time * 0.27 + d.phase * 1.3) * 0.22;
+                const restX = cloud.x + d.hx * cloud.spread + floatX;
+                const restY = cloud.y + d.hy * cloud.spread + floatY;
+                const tx = restX + (gatherX + d.gx * cloud.spread - restX) * cohesion;
+                const ty = restY + (gatherY + d.gy * cloud.spread - restY) * cohesion - sink * 3.5;
+                const tz = d.hz + (d.gz - d.hz) * cohesion;
+                const k = 5;
+                const damping = 3.2;
+                d.vx += ((tx - d.x) * k - d.vx * damping) * dt;
+                d.vy += ((ty - d.y) * k - d.vy * damping) * dt;
+                d.vz += ((tz - d.z) * k - d.vz * damping) * dt;
+                d.x += d.vx * dt;
+                d.y += d.vy * dt;
+                d.z += d.vz * dt;
+                dropData[i * 4] = d.x;
+                dropData[i * 4 + 1] = d.y;
+                dropData[i * 4 + 2] = d.z;
+                dropData[i * 4 + 3] = d.r * cloud.spread * (1 + 0.15 * cohesion);
+                minX = Math.min(minX, d.x - d.r);
+                minY = Math.min(minY, d.y - d.r);
+                minZ = Math.min(minZ, d.z - d.r);
+                maxX = Math.max(maxX, d.x + d.r);
+                maxY = Math.max(maxY, d.y + d.r);
+                maxZ = Math.max(maxZ, d.z + d.r);
+            });
+            const cx = (minX + maxX) / 2;
+            const cy = (minY + maxY) / 2;
+            const cz = (minZ + maxZ) / 2;
+            const boundRadius = Math.hypot(maxX - minX, maxY - minY, maxZ - minZ) / 2 + 0.4;
+
+            const clickAge = (now - click.at) / 1000;
             gl.uniform1f(uTime, time);
-            gl.uniform2f(uMouse, smooth.x, smooth.y);
-            gl.uniform2f(uRot, time * 0.15 + (smooth.x - center.x) * 1.2, -(smooth.y - center.y) * 0.9);
-            gl.uniform3f(uW, weights[0], weights[1], weights[2]);
-            gl.uniform1f(uFurMix, furMix);
-            gl.uniform1f(uEnergy, energy);
+            gl.uniform4fv(uDrops, dropData);
+            gl.uniform1i(uCount, count);
+            gl.uniform1f(uBlend, 0.12 + 0.5 * cohesion);
+            gl.uniform4f(uBound, cx, cy, cz, boundRadius);
+            gl.uniform4f(uClick, click.x, click.y, click.z, clickAge < 4 ? clickAge : 10);
+            gl.uniform1f(uCohesion, cohesion);
             gl.drawArrays(gl.TRIANGLES, 0, 3);
             if (visible && !reduceMotion) raf = requestAnimationFrame(frame);
             else running = false;
@@ -402,13 +455,21 @@ export default function FluidHero() {
 
         return () => {
             cancelAnimationFrame(raf);
+            window.clearTimeout(phraseTimer);
             observer.disconnect();
             window.removeEventListener('resize', onResize);
             window.removeEventListener('pointermove', onPointer);
+            window.removeEventListener('touchstart', onTouch);
+            window.removeEventListener('touchmove', onTouch);
             canvas.removeEventListener('pointerdown', onClick);
             gl.getExtension('WEBGL_lose_context')?.loseContext();
         };
-    }, []);
+    }, [phrases]);
 
-    return <canvas ref={canvasRef} className={fallback ? `${styles.heroCanvas} ${styles.heroFallback}` : styles.heroCanvas} aria-hidden="true" />;
+    return (
+        <>
+            <canvas ref={canvasRef} className={fallback ? `${styles.heroCanvas} ${styles.heroFallback}` : styles.heroCanvas} aria-hidden="true" />
+            <span ref={phraseRef} className={styles.heroPhrase} aria-hidden="true" />
+        </>
+    );
 }
