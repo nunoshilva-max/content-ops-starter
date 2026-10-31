@@ -313,7 +313,7 @@ export default function PersonalSite({ lang }: { lang: Lang }) {
 
             <main id="top">
                 <section className={styles.hero}>
-                    <FluidHero />
+                    <FluidHero phrases={t.heroPhrases} />
                     <div className={styles.heroInner}>
                         <p className={styles.heroEyebrow}>
                             {tr(profile.eyebrow, lang)} — {tr(profile.location, lang)}

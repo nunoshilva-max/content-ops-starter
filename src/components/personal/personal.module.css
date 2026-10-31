@@ -166,6 +166,63 @@
     display: block;
 }
 
+.heroPhrase {
+    position: absolute;
+    z-index: 2;
+    left: 50%;
+    top: 50%;
+    pointer-events: none;
+    font-family: var(--serif);
+    font-style: italic;
+    font-size: clamp(22px, 2.2vw, 34px);
+    white-space: nowrap;
+    color: var(--fg);
+    text-shadow: 0 2px 24px rgba(7, 7, 10, 0.8);
+    transform: translate(-50%, -50%);
+}
+
+/* Letters splash out of a drop (--dx/--dy point back at it), then drip away. */
+.heroLetter {
+    display: inline-block;
+    opacity: 0;
+}
+
+.heroPhraseOn .heroLetter {
+    animation: letterSplash 1s cubic-bezier(0.2, 1.35, 0.4, 1) var(--delay) both;
+}
+
+.heroPhraseOut .heroLetter {
+    animation: letterDrip 0.9s cubic-bezier(0.55, 0, 0.9, 0.4) var(--delay) both;
+}
+
+@keyframes letterSplash {
+    0% {
+        opacity: 0;
+        transform: translate(var(--dx), var(--dy)) scale(0.1) rotate(var(--spin));
+        filter: blur(4px);
+    }
+    35% {
+        opacity: 1;
+    }
+    100% {
+        opacity: 1;
+        transform: none;
+        filter: none;
+    }
+}
+
+@keyframes letterDrip {
+    0% {
+        opacity: 1;
+        transform: none;
+    }
+    100% {
+        opacity: 0;
+        transform: translateY(46px) scale(0.6, 1.7);
+        filter: blur(3px);
+    }
+}
+
 .heroFallback {
     background: radial-gradient(60% 50% at 70% 40%, rgba(122, 61, 245, 0.55), transparent 70%),
         radial-gradient(40% 40% at 30% 70%, rgba(255, 92, 77, 0.4), transparent 70%), var(--bg);
@@ -933,6 +990,7 @@
 }
 
 .writing blockquote {
+    position: relative;
     margin-top: clamp(64px, 12vh, 128px);
     font-family: var(--serif);
     font-style: italic;
@@ -946,6 +1004,44 @@
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
+}
+
+/* The ocean from the hero settles as a moving waterline under the quote. */
+.writing blockquote::after,
+.writing blockquote::before {
+    content: '';
+    position: absolute;
+    right: 0;
+    bottom: -34px;
+    width: min(100vw, 1200px);
+    height: 28px;
+    background-repeat: repeat-x;
+    background-size: 240px 28px;
+    pointer-events: none;
+    animation: waterline 9s linear infinite;
+}
+
+.writing blockquote::after {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='28' viewBox='0 0 240 28'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' x2='1'%3E%3Cstop offset='0' stop-color='%237a3df5'/%3E%3Cstop offset='1' stop-color='%2333a1ff'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath d='M0 14 C 40 2, 80 2, 120 14 S 200 26, 240 14' fill='none' stroke='url(%23g)' stroke-width='1.5'/%3E%3C/svg%3E");
+    opacity: 0.7;
+    -webkit-mask-image: linear-gradient(90deg, transparent, #000 30%, #000 90%, transparent);
+    mask-image: linear-gradient(90deg, transparent, #000 30%, #000 90%, transparent);
+}
+
+.writing blockquote::before {
+    bottom: -42px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='28' viewBox='0 0 240 28'%3E%3Cpath d='M0 14 C 40 4, 80 4, 120 14 S 200 24, 240 14' fill='none' stroke='%23ff5c4d' stroke-width='1'/%3E%3C/svg%3E");
+    opacity: 0.35;
+    animation-duration: 14s;
+    animation-direction: reverse;
+    -webkit-mask-image: linear-gradient(90deg, transparent, #000 40%, #000 85%, transparent);
+    mask-image: linear-gradient(90deg, transparent, #000 40%, #000 85%, transparent);
+}
+
+@keyframes waterline {
+    to {
+        background-position-x: -240px;
+    }
 }
 
 /* Contact */
@@ -1408,11 +1504,21 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+    .heroPhraseOn .heroLetter {
+        animation: none;
+        opacity: 1;
+    }
+    .heroPhraseOut .heroLetter {
+        animation: none;
+        opacity: 0;
+    }
     .reveal {
         opacity: 1;
         transform: none;
     }
     .marqueeTrack,
+    .writing blockquote::after,
+    .writing blockquote::before,
     .portraitRing,
     .line,
     .heroEyebrow,
