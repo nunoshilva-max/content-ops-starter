@@ -5,7 +5,7 @@ import styles from './personal.module.css';
 // they float apart. Move the pointer slowly and they gather around it and merge into one
 // body of water; move it fast and the body breaks apart again (technology running over
 // people). A click sends a ripple through the liquid and shows one of `phrases` for a
-// moment; scrolling down lets the drops sink. Droplet physics run in JavaScript and the
+// moment, its letters splashing out of the nearest drop; scrolling down lets the drops sink. Droplet physics run in JavaScript and the
 // liquid is raymarched as a smooth union of spheres in the fragment shader.
 
 const MAX_DROPS = 22;
@@ -22,6 +22,7 @@ precision highp float;
 uniform vec2 uRes;
 uniform float uTime;
 uniform vec4 uDrops[${MAX_DROPS}];
+uniform vec4 uFlow[${MAX_DROPS}];
 uniform int uCount;
 uniform float uBlend;
 uniform vec4 uBound;
@@ -54,7 +55,21 @@ float liquid(vec3 p) {
     for (int i = 0; i < ${MAX_DROPS}; i++) {
         if (i >= uCount) break;
         vec4 drop = uDrops[i];
-        d = smin(d, length(p - drop.xyz) - drop.w, uBlend);
+        vec4 flow = uFlow[i];
+        vec3 q = p - drop.xyz;
+        // Moving drops stretch along their velocity into a teardrop (longer tail behind) and
+        // thin out across it, keeping roughly the same volume.
+        float speed = length(flow.xyz);
+        if (speed > 0.001) {
+            vec3 dir = flow.xyz / speed;
+            float s = 1.0 + min(speed * 0.35, 0.9);
+            float along = dot(q, dir);
+            vec3 across = q - dir * along;
+            q = dir * along / (along < 0.0 ? s * 1.35 : s) + across * sqrt(s);
+        }
+        // Each drop's surface wobbles on its own rhythm.
+        float wobble = sin(q.x * 7.0 + uTime * 2.1 + flow.w) * sin(q.y * 6.0 - uTime * 1.7 + flow.w * 1.3) * sin(q.z * 6.5 + uTime * 1.3 + flow.w * 0.7);
+        d = smin(d, length(q) - drop.w * (1.0 + 0.14 * wobble), uBlend);
     }
     // A slight tremble on the surface, stronger when the drops are together.
     d += sin(p.x * 4.0 + uTime * 1.3) * sin(p.y * 3.5 - uTime * 1.1) * sin(p.z * 4.0 + uTime * 0.9) * (0.015 + 0.03 * uCohesion);
@@ -110,7 +125,7 @@ void main() {
         for (int i = 0; i < 96; i++) {
             float d = liquid(ro + rd * t);
             if (d < 0.0015 * t) { hit = true; break; }
-            t += d * 0.8;
+            t += d * 0.65;
             if (t > tEnd) break;
         }
         if (hit) {
@@ -179,6 +194,8 @@ type Drop = {
     gy: number;
     gz: number;
     phase: number;
+    // 1 right after a phrase splashed out of this drop, fading to 0.
+    pulse: number;
 };
 
 export default function FluidHero({ phrases }: { phrases: string[] }) {
@@ -217,6 +234,7 @@ export default function FluidHero({ phrases }: { phrases: string[] }) {
         const uRes = u('uRes');
         const uTime = u('uTime');
         const uDrops = u('uDrops');
+        const uFlow = u('uFlow');
         const uCount = u('uCount');
         const uBlend = u('uBlend');
         const uBound = u('uBound');
@@ -268,7 +286,8 @@ export default function FluidHero({ phrases }: { phrases: string[] }) {
                 gx: Math.sin(gb) * Math.cos(ga) * gd,
                 gy: Math.sin(gb) * Math.sin(ga) * gd,
                 gz: Math.cos(gb) * gd * 0.6,
-                phase: random() * Math.PI * 2
+                phase: random() * Math.PI * 2,
+                pulse: 0
             };
         });
         // Start at rest; with reduced motion, start (and stay) gathered as one body of water.
@@ -304,10 +323,60 @@ export default function FluidHero({ phrases }: { phrases: string[] }) {
         window.addEventListener('touchstart', onTouch, { passive: true });
         window.addEventListener('touchmove', onTouch, { passive: true });
 
-        // A click (or tap) sends a ripple out from the pointer and shows the next phrase there.
+        // A click (or tap) sends a ripple out from the pointer, and the next phrase splashes out of
+        // the nearest drop letter by letter, then drips away.
         const click = { x: 0, y: 0, z: 0, at: -Infinity };
         let phraseIndex = 0;
         let phraseTimer = 0;
+        const toScreen = (d: Drop, rect: DOMRect) => {
+            const k = FOCAL / (DIST - d.z);
+            return { x: rect.width / 2 + d.x * k * rect.height, y: rect.height / 2 - d.y * k * rect.height };
+        };
+        const showPhrase = (clientX: number, clientY: number) => {
+            if (!phraseEl || phrases.length === 0) return;
+            const rect = canvas.getBoundingClientRect();
+            const clickX = clientX - rect.left;
+            const clickY = clientY - rect.top;
+            let source = drops[0];
+            let best = Infinity;
+            for (const d of drops) {
+                const pos = toScreen(d, rect);
+                const dist = Math.hypot(pos.x - clickX, pos.y - clickY);
+                if (dist < best) {
+                    best = dist;
+                    source = d;
+                }
+            }
+            source.pulse = 1;
+            source.vy += 1.5;
+            const from = toScreen(source, rect);
+
+            window.clearTimeout(phraseTimer);
+            phraseEl.className = styles.heroPhrase;
+            phraseEl.replaceChildren();
+            const letters = Array.from(phrases[phraseIndex % phrases.length]).map((ch) => {
+                const span = document.createElement('span');
+                span.className = styles.heroLetter;
+                span.textContent = ch === ' ' ? '\u00a0' : ch;
+                phraseEl.appendChild(span);
+                return span;
+            });
+            phraseIndex++;
+            // Centre the line above the click, kept inside the hero.
+            const half = phraseEl.offsetWidth / 2 + 16;
+            phraseEl.style.left = `${Math.min(Math.max(clickX, half), rect.width - half)}px`;
+            phraseEl.style.top = `${Math.max(clickY - 70, 90)}px`;
+            // Each letter starts inside the drop and flies to its place in the line.
+            letters.forEach((span, i) => {
+                const box = span.getBoundingClientRect();
+                span.style.setProperty('--dx', `${from.x - (box.left + box.width / 2 - rect.left)}px`);
+                span.style.setProperty('--dy', `${from.y - (box.top + box.height / 2 - rect.top)}px`);
+                span.style.setProperty('--spin', `${(Math.random() - 0.5) * 90}deg`);
+                span.style.setProperty('--delay', `${i * 26}ms`);
+            });
+            requestAnimationFrame(() => phraseEl.classList.add(styles.heroPhraseOn));
+            phraseTimer = window.setTimeout(() => phraseEl.classList.add(styles.heroPhraseOut), 2800 + letters.length * 26);
+        };
         const onClick = (e: PointerEvent) => {
             setPointer(e.clientX, e.clientY);
             click.x = pointer.x;
@@ -322,16 +391,7 @@ export default function FluidHero({ phrases }: { phrases: string[] }) {
                 d.vx += (dx / dist) * push;
                 d.vy += (dy / dist) * push;
             }
-            if (phraseEl && phrases.length > 0) {
-                const rect = canvas.getBoundingClientRect();
-                phraseEl.textContent = phrases[phraseIndex % phrases.length];
-                phraseIndex++;
-                phraseEl.style.left = `${Math.min(Math.max(e.clientX - rect.left, 160), rect.width - 160)}px`;
-                phraseEl.style.top = `${e.clientY - rect.top}px`;
-                phraseEl.classList.add(styles.heroPhraseOn);
-                window.clearTimeout(phraseTimer);
-                phraseTimer = window.setTimeout(() => phraseEl.classList.remove(styles.heroPhraseOn), 2600);
-            }
+            showPhrase(e.clientX, e.clientY);
         };
         canvas.addEventListener('pointerdown', onClick);
 
@@ -350,6 +410,7 @@ export default function FluidHero({ phrases }: { phrases: string[] }) {
         observer.observe(canvas);
 
         const dropData = new Float32Array(MAX_DROPS * 4);
+        const flowData = new Float32Array(MAX_DROPS * 4);
         const smooth = { x: 0, y: 0 };
         let cohesion = reduceMotion ? 1 : 0;
         let scatteredUntil = -Infinity;
@@ -408,15 +469,17 @@ export default function FluidHero({ phrases }: { phrases: string[] }) {
             let maxY = -Infinity;
             let maxZ = -Infinity;
             drops.forEach((d, i) => {
-                const floatX = Math.sin(time * 0.31 + d.phase) * 0.22;
-                const floatY = Math.cos(time * 0.27 + d.phase * 1.3) * 0.22;
+                // At rest the drops wander on slow, overlapping currents, so their paths cross.
+                const floatX = Math.sin(time * 0.21 + d.phase) * 0.55 + Math.sin(time * 0.47 + d.phase * 2.3 + d.hy) * 0.25;
+                const floatY = Math.cos(time * 0.18 + d.phase * 1.7) * 0.45 + Math.sin(time * 0.39 + d.hx) * 0.2;
                 const restX = cloud.x + d.hx * cloud.spread + floatX;
                 const restY = cloud.y + d.hy * cloud.spread + floatY;
                 const tx = restX + (gatherX + d.gx * cloud.spread - restX) * cohesion;
                 const ty = restY + (gatherY + d.gy * cloud.spread - restY) * cohesion - sink * 3.5;
                 const tz = d.hz + (d.gz - d.hz) * cohesion;
-                const k = 5;
-                const damping = 3.2;
+                // Looser springs at rest, so the drops lag, overshoot and stretch.
+                const k = 2.2 + 2.8 * cohesion;
+                const damping = 1.8 + 1.4 * cohesion;
                 d.vx += ((tx - d.x) * k - d.vx * damping) * dt;
                 d.vy += ((ty - d.y) * k - d.vy * damping) * dt;
                 d.vz += ((tz - d.z) * k - d.vz * damping) * dt;
@@ -426,7 +489,12 @@ export default function FluidHero({ phrases }: { phrases: string[] }) {
                 dropData[i * 4] = d.x;
                 dropData[i * 4 + 1] = d.y;
                 dropData[i * 4 + 2] = d.z;
-                dropData[i * 4 + 3] = d.r * cloud.spread * (1 + 0.15 * cohesion);
+                d.pulse *= Math.exp(-dt * 2.5);
+                dropData[i * 4 + 3] = d.r * cloud.spread * (1 + 0.15 * cohesion) * (1 - 0.35 * d.pulse);
+                flowData[i * 4] = d.vx;
+                flowData[i * 4 + 1] = d.vy;
+                flowData[i * 4 + 2] = d.vz;
+                flowData[i * 4 + 3] = d.phase;
                 minX = Math.min(minX, d.x - d.r);
                 minY = Math.min(minY, d.y - d.r);
                 minZ = Math.min(minZ, d.z - d.r);
@@ -442,8 +510,10 @@ export default function FluidHero({ phrases }: { phrases: string[] }) {
             const clickAge = (now - click.at) / 1000;
             gl.uniform1f(uTime, time);
             gl.uniform4fv(uDrops, dropData);
+            gl.uniform4fv(uFlow, flowData);
             gl.uniform1i(uCount, count);
-            gl.uniform1f(uBlend, 0.12 + 0.5 * cohesion);
+            // Even apart, drops that pass close to each other briefly neck and merge.
+            gl.uniform1f(uBlend, 0.22 + 0.4 * cohesion);
             gl.uniform4f(uBound, cx, cy, cz, boundRadius);
             gl.uniform4f(uClick, click.x, click.y, click.z, clickAge < 4 ? clickAge : 10);
             gl.uniform1f(uCohesion, cohesion);
