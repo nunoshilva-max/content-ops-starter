@@ -14,7 +14,9 @@ import styles from './personal.module.css';
 
 const MAX_DROPS = 22;
 const MAX_SPRAY = 18;
-const MAX_SPHERES = MAX_DROPS + MAX_SPRAY;
+// Phones and tablets get a light version: a few large blobs and hardly any spray.
+const LITE_DROPS = 4;
+const LITE_SPRAY = 2;
 const FOCAL = 1.6;
 const DIST = 9;
 
@@ -23,13 +25,15 @@ attribute vec2 aPos;
 void main() { gl_Position = vec4(aPos, 0.0, 1.0); }
 `;
 
-const FRAGMENT = `
+// The fragment shader, sized for the device: how many spheres it reads, how many raymarching
+// steps it may take, and whether the surface gets the (costly) noise bumps.
+const fragment = (spheres: number, steps: number, lite: boolean) => `
 precision highp float;
 uniform vec2 uRes;
 uniform float uTime;
-uniform vec4 uDrops[${MAX_SPHERES}];
-uniform vec4 uFlow[${MAX_SPHERES}];
-uniform vec4 uShape[${MAX_SPHERES}];
+uniform vec4 uDrops[${spheres}];
+uniform vec4 uFlow[${spheres}];
+uniform vec4 uShape[${spheres}];
 uniform int uCount;
 uniform float uBlend;
 uniform vec4 uBound;
@@ -59,7 +63,7 @@ float smin(float a, float b, float k) {
 
 float liquid(vec3 p) {
     float d = 1e3;
-    for (int i = 0; i < ${MAX_SPHERES}; i++) {
+    for (int i = 0; i < ${spheres}; i++) {
         if (i >= uCount) break;
         vec4 drop = uDrops[i];
         vec4 flow = uFlow[i];
@@ -87,7 +91,7 @@ float liquid(vec3 p) {
     }
     // Irregular, slowly drifting bumps make the surface organic rather than geometric,
     // with a finer tremble on top; both grow when the drops are together.
-    d += (noise(p * 1.8 + vec3(0.0, uTime * 0.35, uTime * 0.2)) - 0.5) * (0.08 + 0.06 * uCohesion);
+    ${lite ? '' : 'd += (noise(p * 1.8 + vec3(0.0, uTime * 0.35, uTime * 0.2)) - 0.5) * (0.08 + 0.06 * uCohesion);'}
     d += sin(p.x * 4.0 + uTime * 1.3) * sin(p.y * 3.5 - uTime * 1.1) * sin(p.z * 4.0 + uTime * 0.9) * (0.01 + 0.02 * uCohesion);
     // The ripple from the last click, spreading out from where it landed.
     if (uClick.w < 4.0) {
@@ -138,7 +142,7 @@ void main() {
         float t = max(-b - sqrt(h), 0.0);
         float tEnd = -b + sqrt(h);
         bool hit = false;
-        for (int i = 0; i < 96; i++) {
+        for (int i = 0; i < ${steps}; i++) {
             float d = liquid(ro + rd * t);
             if (d < 0.0015 * t) { hit = true; break; }
             t += d * 0.6;
@@ -277,7 +281,11 @@ export default function FluidHero({ phrases }: { phrases: string[] }) {
             return;
         }
         const vs = compile(gl, gl.VERTEX_SHADER, VERTEX);
-        const fs = compile(gl, gl.FRAGMENT_SHADER, FRAGMENT);
+        const lite = window.innerWidth < 720 || window.matchMedia('(pointer: coarse)').matches;
+        const count = lite ? LITE_DROPS : MAX_DROPS;
+        const maxSpray = lite ? LITE_SPRAY : MAX_SPRAY;
+        const spheres = count + maxSpray;
+        const fs = compile(gl, gl.FRAGMENT_SHADER, fragment(spheres, lite ? 56 : 96, lite));
         const program = gl.createProgram();
         if (!vs || !fs || !program) {
             setFallback(true);
@@ -308,10 +316,8 @@ export default function FluidHero({ phrases }: { phrases: string[] }) {
         const uCohesion = u('uCohesion');
 
         const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-        const narrow = window.innerWidth < 720;
-        const count = narrow ? 14 : MAX_DROPS;
         // Raymarching is expensive: render below native resolution and lower it further if frames run slow.
-        let scale = Math.min(window.devicePixelRatio || 1, 1.5) * (narrow ? 0.5 : 0.6);
+        let scale = Math.min(window.devicePixelRatio || 1, 1.5) * (lite ? 0.4 : 0.6);
 
         // Screen space (x in [-aspect/2, aspect/2], y in [-0.5, 0.5]) ↔ the plane z = 0 in the scene.
         const toWorld = DIST / FOCAL;
@@ -345,7 +351,8 @@ export default function FluidHero({ phrases }: { phrases: string[] }) {
                 vx: 0,
                 vy: 0,
                 vz: 0,
-                r: 0.18 + random() * 0.26,
+                // On phones, fewer but much bigger drops (the cloud is also scaled down there).
+                r: lite ? 0.75 + random() * 0.3 : 0.18 + random() * 0.26,
                 hx: Math.cos(angle) * radius * 2.0,
                 hy: Math.sin(angle) * radius * 1.35,
                 hz: (random() - 0.5) * 1.4,
@@ -398,7 +405,7 @@ export default function FluidHero({ phrases }: { phrases: string[] }) {
         // Small spray droplets thrown off when the water breaks apart or is clicked.
         const spray: Spray[] = [];
         const emit = (x: number, y: number, z: number, vx: number, vy: number, vz: number) => {
-            if (spray.length >= MAX_SPRAY || reduceMotion) return;
+            if (spray.length >= maxSpray || reduceMotion) return;
             spray.push({ x, y, z, vx, vy, vz, r: (0.035 + Math.random() * 0.07) * cloud.spread, age: 0, life: 3 + Math.random() * 3, phase: Math.random() * 6.28 });
         };
 
@@ -476,7 +483,8 @@ export default function FluidHero({ phrases }: { phrases: string[] }) {
                 const dx = d.x - click.x;
                 const dy = d.y - click.y;
                 const dist = Math.hypot(dx, dy) || 1;
-                const push = Math.max(0, 1 - dist / 3) * 2.2;
+                // Gentler on phones, where the few big blobs would otherwise leave the screen.
+                const push = Math.max(0, 1 - dist / 3) * (lite ? 0.7 : 2.2);
                 d.vx += (dx / dist) * push;
                 d.vy += (dy / dist) * push;
             }
@@ -498,9 +506,9 @@ export default function FluidHero({ phrases }: { phrases: string[] }) {
         });
         observer.observe(canvas);
 
-        const dropData = new Float32Array(MAX_SPHERES * 4);
-        const flowData = new Float32Array(MAX_SPHERES * 4);
-        const shapeData = new Float32Array(MAX_SPHERES * 4);
+        const dropData = new Float32Array(spheres * 4);
+        const flowData = new Float32Array(spheres * 4);
+        const shapeData = new Float32Array(spheres * 4);
         const smooth = { x: 0, y: 0 };
         let cohesion = reduceMotion ? 1 : 0;
         let scatteredUntil = -Infinity;
