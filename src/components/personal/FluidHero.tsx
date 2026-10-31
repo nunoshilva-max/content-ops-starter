@@ -5,10 +5,16 @@ import styles from './personal.module.css';
 // they float apart. Move the pointer slowly and they gather around it and merge into one
 // body of water; move it fast and the body breaks apart again (technology running over
 // people). A click sends a ripple through the liquid and shows one of `phrases` for a
-// moment, its letters splashing out of the nearest drop; scrolling down lets the drops sink. Droplet physics run in JavaScript and the
-// liquid is raymarched as a smooth union of spheres in the fragment shader.
+// moment, its letters splashing out of the nearest drop; scrolling down lets the drops sink.
+// The water behaves as in microgravity (after NASA's water-sphere experiments on the ISS):
+// knocked drops ring through oval and pear shapes before settling, small droplets pinch off
+// and drift away in straight lines until they touch a drop and merge back, and each drop
+// works as a lens, showing the scene behind it flipped, with a thick dark rim. Droplet
+// physics run in JavaScript and the liquid is raymarched as a smooth union of spheres.
 
 const MAX_DROPS = 22;
+const MAX_SPRAY = 18;
+const MAX_SPHERES = MAX_DROPS + MAX_SPRAY;
 const FOCAL = 1.6;
 const DIST = 9;
 
@@ -21,8 +27,9 @@ const FRAGMENT = `
 precision highp float;
 uniform vec2 uRes;
 uniform float uTime;
-uniform vec4 uDrops[${MAX_DROPS}];
-uniform vec4 uFlow[${MAX_DROPS}];
+uniform vec4 uDrops[${MAX_SPHERES}];
+uniform vec4 uFlow[${MAX_SPHERES}];
+uniform vec4 uShape[${MAX_SPHERES}];
 uniform int uCount;
 uniform float uBlend;
 uniform vec4 uBound;
@@ -52,27 +59,36 @@ float smin(float a, float b, float k) {
 
 float liquid(vec3 p) {
     float d = 1e3;
-    for (int i = 0; i < ${MAX_DROPS}; i++) {
+    for (int i = 0; i < ${MAX_SPHERES}; i++) {
         if (i >= uCount) break;
         vec4 drop = uDrops[i];
         vec4 flow = uFlow[i];
+        vec4 shape = uShape[i];
         vec3 q = p - drop.xyz;
-        // Moving drops stretch along their velocity into a teardrop (longer tail behind) and
-        // thin out across it, keeping roughly the same volume.
+        // Fast drops stretch a little along their velocity, keeping roughly the same volume.
         float speed = length(flow.xyz);
         if (speed > 0.001) {
             vec3 dir = flow.xyz / speed;
-            float s = 1.0 + min(speed * 0.35, 0.9);
+            float s = 1.0 + min(speed * 0.15, 0.45);
             float along = dot(q, dir);
             vec3 across = q - dir * along;
-            q = dir * along / (along < 0.0 ? s * 1.35 : s) + across * sqrt(s);
+            q = dir * along / (along < 0.0 ? s * 1.2 : s) + across * sqrt(s);
         }
-        // Each drop's surface wobbles on its own rhythm.
-        float wobble = sin(q.x * 7.0 + uTime * 2.1 + flow.w) * sin(q.y * 6.0 - uTime * 1.7 + flow.w * 1.3) * sin(q.z * 6.5 + uTime * 1.3 + flow.w * 0.7);
-        d = smin(d, length(q) - drop.w * (1.0 + 0.14 * wobble), uBlend);
+        float len = length(q);
+        vec3 n = q / max(len, 1e-4);
+        // Oscillation modes of a free-floating drop, along shape.xy: the 2nd mode squashes it
+        // into an oval and back, the 3rd swells one end into a pear shape.
+        float c = dot(n, vec3(shape.xy, 0.0));
+        float p2 = 0.5 * (3.0 * c * c - 1.0);
+        float p3 = 0.5 * (5.0 * c * c * c - 3.0 * c);
+        // And a small ripple of its own.
+        float wobble = sin(n.x * 5.0 + uTime * 2.1 + flow.w) * sin(n.y * 4.0 - uTime * 1.7 + flow.w * 1.3) * sin(n.z * 4.5 + uTime * 1.3 + flow.w * 0.7);
+        d = smin(d, len - drop.w * (1.0 + shape.z * p2 + shape.w * p3 + 0.06 * wobble), uBlend);
     }
-    // A slight tremble on the surface, stronger when the drops are together.
-    d += sin(p.x * 4.0 + uTime * 1.3) * sin(p.y * 3.5 - uTime * 1.1) * sin(p.z * 4.0 + uTime * 0.9) * (0.015 + 0.03 * uCohesion);
+    // Irregular, slowly drifting bumps make the surface organic rather than geometric,
+    // with a finer tremble on top; both grow when the drops are together.
+    d += (noise(p * 1.8 + vec3(0.0, uTime * 0.35, uTime * 0.2)) - 0.5) * (0.08 + 0.06 * uCohesion);
+    d += sin(p.x * 4.0 + uTime * 1.3) * sin(p.y * 3.5 - uTime * 1.1) * sin(p.z * 4.0 + uTime * 0.9) * (0.01 + 0.02 * uCohesion);
     // The ripple from the last click, spreading out from where it landed.
     if (uClick.w < 4.0) {
         float r = length(p - uClick.xyz);
@@ -96,14 +112,14 @@ vec3 env(vec3 d) {
     return c;
 }
 
-vec3 backdrop(vec2 p, vec2 pool) {
+vec3 backdrop(vec2 p, vec2 pool, float lineStrength) {
     vec3 c = vec3(0.027, 0.027, 0.035);
     vec2 d = p - pool;
     float glow = exp(-dot(d, d) * 2.2);
     c += mix(vec3(0.3, 0.25, 0.9), vec3(0.2, 0.6, 1.0), uCohesion) * glow * 0.16;
     // Fine diagonal hairlines; they bend visibly through the liquid.
     float lines = smoothstep(0.93, 1.0, abs(sin((p.x * 0.6 + p.y) * 42.0)));
-    c += lines * 0.06 * glow;
+    c += lines * 0.06 * glow * lineStrength;
     return c;
 }
 
@@ -112,7 +128,7 @@ void main() {
     vec3 ro = vec3(0.0, 0.0, DIST);
     vec3 rd = normalize(vec3(p, -FOCAL));
     vec2 pool = uBound.xy * FOCAL / (DIST - uBound.z);
-    vec3 col = backdrop(p, pool);
+    vec3 col = backdrop(p, pool, 1.0);
 
     // Only march inside the sphere that bounds all the drops.
     vec3 oc = ro - uBound.xyz;
@@ -125,7 +141,7 @@ void main() {
         for (int i = 0; i < 96; i++) {
             float d = liquid(ro + rd * t);
             if (d < 0.0015 * t) { hit = true; break; }
-            t += d * 0.65;
+            t += d * 0.6;
             if (t > tEnd) break;
         }
         if (hit) {
@@ -140,8 +156,15 @@ void main() {
 
             float caustic = pow(noise(pos * 2.5 + uTime * 0.5), 4.0);
             vec3 tint = mix(vec3(0.2, 0.55, 1.0), vec3(0.6, 0.35, 1.0), 0.5 + 0.5 * nor.y);
-            vec3 liquidCol = backdrop(p + rr.xy * 0.35, pool) * vec3(0.8, 1.0, 1.15) + env(rr) * 0.12;
-            liquidCol += tint * (0.05 + caustic * 0.55);
+            // A ball of water is a lens: the view through it is magnified and flipped.
+            // (The hairlines are softened here: magnified, they would read as contour lines.)
+            vec3 liquidCol = backdrop(p - rr.xy * 1.1, pool, 0.35) * vec3(0.85, 1.0, 1.15) * 1.25 + env(-rr) * 0.18;
+            liquidCol += tint * (0.04 + caustic * 0.4);
+            // Light bends away near the edge, so a thick dark rim runs all around the drop,
+            // with a thin bright line just inside it.
+            float edge = 1.0 - ndv;
+            liquidCol *= 1.0 - 0.85 * smoothstep(0.45, 0.85, edge);
+            liquidCol += vec3(0.75, 0.85, 1.0) * smoothstep(0.3, 0.42, edge) * smoothstep(0.52, 0.42, edge) * 0.35;
             // A thin-film sheen at grazing angles, like light on a soap bubble.
             vec3 film = 0.5 + 0.5 * cos(6.2831 * (fres * 1.3 + ndv * 0.5 + vec3(0.0, 0.33, 0.67)));
             liquidCol = mix(liquidCol, env(refl), 0.08 + 0.9 * fres) + film * fres * 0.3;
@@ -196,6 +219,48 @@ type Drop = {
     phase: number;
     // 1 right after a phrase splashed out of this drop, fading to 0.
     pulse: number;
+    // Shape oscillation: axis (ax, ay) and the amplitudes and velocities of the
+    // oval (a2) and pear (a3) modes.
+    ax: number;
+    ay: number;
+    a2: number;
+    v2: number;
+    a3: number;
+    v3: number;
+};
+
+// Natural frequencies (rad/s) and damping of the two shape modes; light damping lets a drop
+// ring for a few seconds, like the drops in the NASA footage.
+const MODE2 = { omega: 6.5, damping: 0.7 };
+const MODE3 = { omega: 11, damping: 1.1 };
+
+// Knock a drop's shape along (dx, dy): s2 and s3 set how hard each mode is struck.
+function kick(d: Drop, dx: number, dy: number, s2: number, s3: number) {
+    const len = Math.hypot(dx, dy);
+    if (len > 1e-4) {
+        // Turn the axis towards the new direction, more so if the drop is barely moving.
+        const w = 1 / (1 + Math.abs(d.a2) * 6);
+        d.ax += (dx / len - d.ax) * w;
+        d.ay += (dy / len - d.ay) * w;
+        const n = Math.hypot(d.ax, d.ay) || 1;
+        d.ax /= n;
+        d.ay /= n;
+    }
+    d.v2 += s2 * MODE2.omega;
+    d.v3 += s3 * MODE3.omega;
+}
+
+type Spray = {
+    x: number;
+    y: number;
+    z: number;
+    vx: number;
+    vy: number;
+    vz: number;
+    r: number;
+    age: number;
+    life: number;
+    phase: number;
 };
 
 export default function FluidHero({ phrases }: { phrases: string[] }) {
@@ -235,6 +300,7 @@ export default function FluidHero({ phrases }: { phrases: string[] }) {
         const uTime = u('uTime');
         const uDrops = u('uDrops');
         const uFlow = u('uFlow');
+        const uShape = u('uShape');
         const uCount = u('uCount');
         const uBlend = u('uBlend');
         const uBound = u('uBound');
@@ -287,7 +353,13 @@ export default function FluidHero({ phrases }: { phrases: string[] }) {
                 gy: Math.sin(gb) * Math.sin(ga) * gd,
                 gz: Math.cos(gb) * gd * 0.6,
                 phase: random() * Math.PI * 2,
-                pulse: 0
+                pulse: 0,
+                ax: 1,
+                ay: 0,
+                a2: 0,
+                v2: 0,
+                a3: 0,
+                v3: 0
             };
         });
         // Start at rest; with reduced motion, start (and stay) gathered as one body of water.
@@ -323,6 +395,13 @@ export default function FluidHero({ phrases }: { phrases: string[] }) {
         window.addEventListener('touchstart', onTouch, { passive: true });
         window.addEventListener('touchmove', onTouch, { passive: true });
 
+        // Small spray droplets thrown off when the water breaks apart or is clicked.
+        const spray: Spray[] = [];
+        const emit = (x: number, y: number, z: number, vx: number, vy: number, vz: number) => {
+            if (spray.length >= MAX_SPRAY || reduceMotion) return;
+            spray.push({ x, y, z, vx, vy, vz, r: (0.035 + Math.random() * 0.07) * cloud.spread, age: 0, life: 3 + Math.random() * 3, phase: Math.random() * 6.28 });
+        };
+
         // A click (or tap) sends a ripple out from the pointer, and the next phrase splashes out of
         // the nearest drop letter by letter, then drips away.
         const click = { x: 0, y: 0, z: 0, at: -Infinity };
@@ -348,7 +427,17 @@ export default function FluidHero({ phrases }: { phrases: string[] }) {
                 }
             }
             source.pulse = 1;
-            source.vy += 1.5;
+            // Struck like the drops hit by a puff of air: it rings through oval and pear shapes,
+            // and a few small droplets pinch off its far side and drift away.
+            const hitX = source.x - pointer.x;
+            const hitY = source.y - pointer.y;
+            const hitLen = Math.hypot(hitX, hitY) || 1;
+            kick(source, hitX, hitY, 0.32, 0.26);
+            for (let i = 0; i < 5; i++) {
+                const a = Math.atan2(hitY, hitX) + (Math.random() - 0.5) * 1.2;
+                const v = 0.6 + Math.random() * 1.1;
+                emit(source.x + (hitX / hitLen) * source.r, source.y + (hitY / hitLen) * source.r, source.z, Math.cos(a) * v, Math.sin(a) * v, (Math.random() - 0.5) * 0.4);
+            }
             const from = toScreen(source, rect);
 
             window.clearTimeout(phraseTimer);
@@ -409,8 +498,9 @@ export default function FluidHero({ phrases }: { phrases: string[] }) {
         });
         observer.observe(canvas);
 
-        const dropData = new Float32Array(MAX_DROPS * 4);
-        const flowData = new Float32Array(MAX_DROPS * 4);
+        const dropData = new Float32Array(MAX_SPHERES * 4);
+        const flowData = new Float32Array(MAX_SPHERES * 4);
+        const shapeData = new Float32Array(MAX_SPHERES * 4);
         const smooth = { x: 0, y: 0 };
         let cohesion = reduceMotion ? 1 : 0;
         let scatteredUntil = -Infinity;
@@ -437,23 +527,45 @@ export default function FluidHero({ phrases }: { phrases: string[] }) {
             const py = smooth.y;
             smooth.x += (pointer.x - smooth.x) * Math.min(dt * 10, 1);
             smooth.y += (pointer.y - smooth.y) * Math.min(dt * 10, 1);
-            const speed = dt > 0 ? Math.hypot(smooth.x - px, smooth.y - py) / dt : 0;
+            const pvx = dt > 0 ? (smooth.x - px) / dt : 0;
+            const pvy = dt > 0 ? (smooth.y - py) / dt : 0;
+            const speed = Math.hypot(pvx, pvy);
             const recent = pointer.active && now - pointer.lastMove < 2500;
             // A fast move breaks the body apart, and the drops stay apart for a moment before regrouping.
             if (speed > 5) scatteredUntil = now + 1400;
             const want = reduceMotion ? 1 : recent && now > scatteredUntil ? 1 : 0;
-            cohesion += (want - cohesion) * Math.min(dt * (want > cohesion ? 1.2 : 6), 1);
+            // Cohesion drops over a few tenths of a second, so the body stretches before it tears.
+            cohesion += (want - cohesion) * Math.min(dt * (want > cohesion ? 1.2 : 3), 1);
+            const scattered = now < scatteredUntil;
 
             if (speed > 5) {
+                const sweep = Math.min(speed, 40);
                 for (const d of drops) {
                     const dx = d.x - smooth.x;
                     const dy = d.y - smooth.y;
                     const dist = Math.hypot(dx, dy) || 1;
-                    const push = Math.max(0, 1 - dist / 3.5) * Math.min(speed, 40) * 0.14;
-                    // Away from the pointer, with a random sideways kick so the drops fly apart.
-                    d.vx += (dx / dist) * push + (Math.random() - 0.5) * push * 0.8;
-                    d.vy += (dy / dist) * push + (Math.random() - 0.5) * push * 0.8;
-                    d.vz += (Math.random() - 0.5) * push * 0.5;
+                    const reach = Math.max(0, 1 - dist / 3.5);
+                    if (reach === 0) continue;
+                    // The pointer drags the water along its path, parts it sideways a little and
+                    // sets every drop it passes ringing.
+                    const scale = Math.min(1, 40 / speed);
+                    kick(d, pvx, pvy, reach * dt * 2.2, (Math.random() < 0.5 ? -1 : 1) * reach * dt * 1.6);
+                    d.vx += (pvx * scale * 0.06 + (dx / dist) * sweep * 0.035) * reach * 9 * dt;
+                    d.vy += (pvy * scale * 0.06 + (dy / dist) * sweep * 0.035) * reach * 9 * dt;
+                    d.vz += (Math.random() - 0.5) * reach * 4 * dt;
+                    // Torn water sheds small droplets from its surface.
+                    if (Math.random() < reach * 0.2) {
+                        const ox = dx / dist;
+                        const oy = dy / dist;
+                        emit(
+                            d.x + ox * d.r,
+                            d.y + oy * d.r,
+                            d.z,
+                            d.vx + ox * (0.5 + Math.random() * 1.2) + pvx * scale * 0.04,
+                            d.vy + oy * (0.5 + Math.random() * 1.2) + pvy * scale * 0.04,
+                            (Math.random() - 0.5) * 0.8
+                        );
+                    }
                 }
             }
 
@@ -477,9 +589,11 @@ export default function FluidHero({ phrases }: { phrases: string[] }) {
                 const tx = restX + (gatherX + d.gx * cloud.spread - restX) * cohesion;
                 const ty = restY + (gatherY + d.gy * cloud.spread - restY) * cohesion - sink * 3.5;
                 const tz = d.hz + (d.gz - d.hz) * cohesion;
-                // Looser springs at rest, so the drops lag, overshoot and stretch.
-                const k = 2.2 + 2.8 * cohesion;
-                const damping = 1.8 + 1.4 * cohesion;
+                // Looser springs at rest, so the drops lag, overshoot and stretch. Just after
+                // breaking apart the springs almost let go, so the pieces drift on their own
+                // momentum, weightless, before the currents bring them back.
+                const k = (2.2 + 2.8 * cohesion) * (scattered ? 0.2 : 1);
+                const damping = (1.8 + 1.4 * cohesion) * (scattered ? 0.3 : 1);
                 d.vx += ((tx - d.x) * k - d.vx * damping) * dt;
                 d.vy += ((ty - d.y) * k - d.vy * damping) * dt;
                 d.vz += ((tz - d.z) * k - d.vz * damping) * dt;
@@ -490,6 +604,16 @@ export default function FluidHero({ phrases }: { phrases: string[] }) {
                 dropData[i * 4 + 1] = d.y;
                 dropData[i * 4 + 2] = d.z;
                 d.pulse *= Math.exp(-dt * 2.5);
+                // Shape modes as damped oscillators, with the odd small knock to keep drops alive.
+                if (!reduceMotion && Math.random() < dt * 0.12) kick(d, Math.random() - 0.5, Math.random() - 0.5, 0.06, 0.04);
+                d.v2 += (-MODE2.omega * MODE2.omega * d.a2 - 2 * MODE2.damping * d.v2) * dt;
+                d.v3 += (-MODE3.omega * MODE3.omega * d.a3 - 2 * MODE3.damping * d.v3) * dt;
+                d.a2 = Math.min(0.55, Math.max(-0.4, d.a2 + d.v2 * dt));
+                d.a3 = Math.min(0.35, Math.max(-0.35, d.a3 + d.v3 * dt));
+                shapeData[i * 4] = d.ax;
+                shapeData[i * 4 + 1] = d.ay;
+                shapeData[i * 4 + 2] = d.a2;
+                shapeData[i * 4 + 3] = d.a3;
                 dropData[i * 4 + 3] = d.r * cloud.spread * (1 + 0.15 * cohesion) * (1 - 0.35 * d.pulse);
                 flowData[i * 4] = d.vx;
                 flowData[i * 4 + 1] = d.vy;
@@ -502,6 +626,44 @@ export default function FluidHero({ phrases }: { phrases: string[] }) {
                 maxY = Math.max(maxY, d.y + d.r);
                 maxZ = Math.max(maxZ, d.z + d.r);
             });
+            // Spray: weightless droplets drifting in straight lines and slowing a little; one
+            // that touches a drop merges back into it.
+            for (let j = spray.length - 1; j >= 0; j--) {
+                const p = spray[j];
+                p.age += dt;
+                const drag = Math.exp(-0.35 * dt);
+                p.vx *= drag;
+                p.vy *= drag;
+                p.vz *= drag;
+                p.x += p.vx * dt;
+                p.y += p.vy * dt;
+                p.z += p.vz * dt;
+                const absorbed = p.age > 0.6 && drops.some((d) => Math.hypot(d.x - p.x, d.y - p.y, d.z - p.z) < d.r * cloud.spread);
+                if (absorbed || p.age > p.life) spray.splice(j, 1);
+            }
+            spray.forEach((p, j) => {
+                const i = count + j;
+                const fade = Math.min(1, (p.life - p.age) / 0.3);
+                dropData[i * 4] = p.x;
+                dropData[i * 4 + 1] = p.y;
+                dropData[i * 4 + 2] = p.z;
+                dropData[i * 4 + 3] = p.r * fade;
+                flowData[i * 4] = p.vx;
+                flowData[i * 4 + 1] = p.vy;
+                flowData[i * 4 + 2] = p.vz;
+                flowData[i * 4 + 3] = p.phase;
+                shapeData[i * 4] = 1;
+                shapeData[i * 4 + 1] = 0;
+                shapeData[i * 4 + 2] = 0;
+                shapeData[i * 4 + 3] = 0;
+                minX = Math.min(minX, p.x - p.r);
+                minY = Math.min(minY, p.y - p.r);
+                minZ = Math.min(minZ, p.z - p.r);
+                maxX = Math.max(maxX, p.x + p.r);
+                maxY = Math.max(maxY, p.y + p.r);
+                maxZ = Math.max(maxZ, p.z + p.r);
+            });
+
             const cx = (minX + maxX) / 2;
             const cy = (minY + maxY) / 2;
             const cz = (minZ + maxZ) / 2;
@@ -511,7 +673,8 @@ export default function FluidHero({ phrases }: { phrases: string[] }) {
             gl.uniform1f(uTime, time);
             gl.uniform4fv(uDrops, dropData);
             gl.uniform4fv(uFlow, flowData);
-            gl.uniform1i(uCount, count);
+            gl.uniform4fv(uShape, shapeData);
+            gl.uniform1i(uCount, count + spray.length);
             // Even apart, drops that pass close to each other briefly neck and merge.
             gl.uniform1f(uBlend, 0.22 + 0.4 * cohesion);
             gl.uniform4f(uBound, cx, cy, cz, boundRadius);
