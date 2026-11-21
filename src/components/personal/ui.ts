@@ -10,7 +10,9 @@ export const ui = {
         nav: { about: 'About', writing: 'Writing', speaking: 'Speaking', work: 'Work', talk: 'Let’s talk', talkCursor: 'Say hi' },
         hint: 'Click the drop.',
         readMpga: 'Read MPGA',
-        heroPhrases: ['There is no wave separated from the ocean.', 'The wave IS the ocean.', 'Technology in service of people.'],
+        // The first phrases a click on the drops shows; MPGA titles follow (see profile.newsletter.heroTitles).
+        heroPhrases: ['There is no wave separated from the ocean.', 'Technology in service of people, not the other way around.'],
+        readEdition: 'Read',
         clients: 'Selected clients',
         sections: {
             about: 'About',
@@ -52,8 +54,7 @@ export const ui = {
             sending: 'Sending…',
             sendCursor: 'Send',
             error: 'Something went wrong. Please try again, or reach me on',
-            doneTitle: ['Thank you. ', 'Message received.'],
-            doneText: 'I’ll get back to you soon.',
+            doneTitle: ['Message received. ', 'I’ll reply soon.'],
             again: 'Send another message',
             privacy: 'Your details are only used to reply to you.',
             privacyLink: 'Privacy policy'
@@ -78,7 +79,8 @@ export const ui = {
         nav: { about: 'Sobre', writing: 'Escrita', speaking: 'Palestras', work: 'Trabalho', talk: 'Vamos falar', talkCursor: 'Olá' },
         hint: 'Clica na gota.',
         readMpga: 'Ler a MPGA',
-        heroPhrases: ['Não há onda separada do oceano.', 'A onda É o oceano.', 'A tecnologia ao serviço das pessoas.'],
+        heroPhrases: ['Não há onda separada do oceano.', 'A tecnologia ao serviço das pessoas, e não o contrário.'],
+        readEdition: 'Ler',
         clients: 'Alguns clientes',
         sections: {
             about: 'Sobre',
@@ -120,8 +122,7 @@ export const ui = {
             sending: 'A enviar…',
             sendCursor: 'Enviar',
             error: 'Algo correu mal. Tente de novo, ou fale comigo no',
-            doneTitle: ['Obrigado. ', 'Mensagem recebida.'],
-            doneText: 'Respondo em breve.',
+            doneTitle: ['Mensagem recebida. ', 'Respondo em breve.'],
             again: 'Enviar outra mensagem',
             privacy: 'Os seus dados só são usados para lhe responder.',
             privacyLink: 'Política de privacidade'

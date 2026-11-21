@@ -106,22 +106,23 @@ vec3 normalAt(vec3 p) {
     return normalize(e.xyy * liquid(p + e.xyy) + e.yyx * liquid(p + e.yyx) + e.yxy * liquid(p + e.yxy) + e.xxx * liquid(p + e.xxx));
 }
 
-// Studio lighting: a white softbox above, pink on the right, green on the left.
+// Studio lighting: a white softbox above, a lime one on the right, a dim grey one on the left.
 vec3 env(vec3 d) {
     vec3 c = vec3(0.015, 0.015, 0.025);
     c += vec3(1.0) * smoothstep(0.5, 0.9, d.y) * smoothstep(0.95, 0.2, abs(d.x)) * 1.5;
-    c += vec3(1.0, 0.3, 0.7) * smoothstep(0.55, 0.95, d.x) * smoothstep(0.7, 0.0, abs(d.y)) * 1.1;
-    c += vec3(0.3, 1.0, 0.25) * smoothstep(0.6, 0.95, -d.x) * smoothstep(0.6, 0.0, abs(d.y - 0.15)) * 0.8;
-    c += vec3(0.3, 0.2, 0.6) * smoothstep(0.0, -0.9, d.y) * 0.25;
+    c += vec3(0.8, 1.0, 0.36) * smoothstep(0.55, 0.95, d.x) * smoothstep(0.7, 0.0, abs(d.y)) * 0.9;
+    c += vec3(0.6) * smoothstep(0.6, 0.95, -d.x) * smoothstep(0.6, 0.0, abs(d.y - 0.15)) * 0.5;
+    c += vec3(0.25, 0.25, 0.28) * smoothstep(0.0, -0.9, d.y) * 0.2;
     return c;
 }
 
 vec3 backdrop(vec2 p, vec2 pool, float lineStrength) {
+    // The site's background colour, with only a faint lime glow where the water is.
     vec3 c = vec3(0.027, 0.027, 0.035);
     vec2 d = p - pool;
     float glow = exp(-dot(d, d) * 2.2);
-    c += mix(vec3(0.3, 0.25, 0.9), vec3(0.2, 0.6, 1.0), uCohesion) * glow * 0.16;
-    // Fine diagonal hairlines; they bend visibly through the liquid.
+    c += vec3(0.8, 1.0, 0.36) * glow * (0.02 + 0.02 * uCohesion);
+    // Fine diagonal hairlines, seen only through the drops, where the lens bends them.
     float lines = smoothstep(0.93, 1.0, abs(sin((p.x * 0.6 + p.y) * 42.0)));
     c += lines * 0.06 * glow * lineStrength;
     return c;
@@ -132,7 +133,7 @@ void main() {
     vec3 ro = vec3(0.0, 0.0, DIST);
     vec3 rd = normalize(vec3(p, -FOCAL));
     vec2 pool = uBound.xy * FOCAL / (DIST - uBound.z);
-    vec3 col = backdrop(p, pool, 1.0);
+    vec3 col = backdrop(p, pool, 0.0);
 
     // Only march inside the sphere that bounds all the drops.
     vec3 oc = ro - uBound.xyz;
@@ -159,7 +160,7 @@ void main() {
             vec3 rr = refract(rd, nor, 0.75);
 
             float caustic = pow(noise(pos * 2.5 + uTime * 0.5), 4.0);
-            vec3 tint = mix(vec3(0.2, 0.55, 1.0), vec3(0.6, 0.35, 1.0), 0.5 + 0.5 * nor.y);
+            vec3 tint = mix(vec3(0.55, 0.6, 0.66), vec3(0.7, 0.9, 0.35), 0.5 + 0.5 * nor.y);
             // A ball of water is a lens: the view through it is magnified and flipped.
             // (The hairlines are softened here: magnified, they would read as contour lines.)
             vec3 liquidCol = backdrop(p - rr.xy * 1.1, pool, 0.35) * vec3(0.85, 1.0, 1.15) * 1.25 + env(-rr) * 0.18;
@@ -171,7 +172,7 @@ void main() {
             liquidCol += vec3(0.75, 0.85, 1.0) * smoothstep(0.3, 0.42, edge) * smoothstep(0.52, 0.42, edge) * 0.35;
             // A thin-film sheen at grazing angles, like light on a soap bubble.
             vec3 film = 0.5 + 0.5 * cos(6.2831 * (fres * 1.3 + ndv * 0.5 + vec3(0.0, 0.33, 0.67)));
-            liquidCol = mix(liquidCol, env(refl), 0.08 + 0.9 * fres) + film * fres * 0.3;
+            liquidCol = mix(liquidCol, env(refl), 0.08 + 0.9 * fres) + film * fres * 0.12;
             liquidCol += pow(max(dot(nor, H), 0.0), 220.0) * 2.6;
             col = liquidCol / (1.0 + liquidCol * 0.3);
         }
@@ -254,6 +255,12 @@ function kick(d: Drop, dx: number, dy: number, s2: number, s3: number) {
     d.v3 += s3 * MODE3.omega;
 }
 
+export type HeroPhrase = {
+    text: string;
+    // A link shown under the phrase (for MPGA titles, the edition).
+    href?: string;
+};
+
 type Spray = {
     x: number;
     y: number;
@@ -267,16 +274,18 @@ type Spray = {
     phase: number;
 };
 
-export default function FluidHero({ phrases, hint }: { phrases: string[]; hint: string }) {
+export default function FluidHero({ phrases, hint, readLabel }: { phrases: HeroPhrase[]; hint: string; readLabel: string }) {
     const canvasRef = React.useRef<HTMLCanvasElement>(null);
     const phraseRef = React.useRef<HTMLSpanElement>(null);
     const hintRef = React.useRef<HTMLSpanElement>(null);
+    const readRef = React.useRef<HTMLAnchorElement>(null);
     const [fallback, setFallback] = React.useState(false);
 
     React.useEffect(() => {
         const canvas = canvasRef.current;
         const phraseEl = phraseRef.current;
         const hintEl = hintRef.current;
+        const readEl = readRef.current;
         const gl = canvas?.getContext('webgl', { antialias: false, alpha: false, powerPreference: 'high-performance' });
         if (!gl) {
             setFallback(true);
@@ -324,6 +333,7 @@ export default function FluidHero({ phrases, hint }: { phrases: string[]; hint: 
         // Screen space (x in [-aspect/2, aspect/2], y in [-0.5, 0.5]) ↔ the plane z = 0 in the scene.
         const toWorld = DIST / FOCAL;
         const cloud = { x: 0, y: 0, spread: 1 };
+        const bounds = { top: Infinity, side: Infinity };
 
         const resize = () => {
             const rect = canvas.getBoundingClientRect();
@@ -336,6 +346,9 @@ export default function FluidHero({ phrases, hint }: { phrases: string[]; hint: 
             cloud.x = (aspect > 1 ? aspect * 0.2 : 0) * toWorld;
             cloud.y = (aspect > 1 ? 0.1 : 0.2) * toWorld;
             cloud.spread = aspect > 1 ? 1 : 0.62;
+            // The drops' playground in scene units: below the header (about 92px), within the sides.
+            bounds.top = ((rect.height / 2 - 92) / rect.height) * toWorld;
+            bounds.side = (rect.width / 2 / rect.height) * toWorld;
             // The "click the drop" hint sits just above the resting drops.
             if (hintEl) {
                 hintEl.style.left = `${rect.width / 2 + (cloud.x / toWorld) * rect.height}px`;
@@ -416,6 +429,9 @@ export default function FluidHero({ phrases, hint }: { phrases: string[]; hint: 
             spray.push({ x, y, z, vx, vy, vz, r: (0.035 + Math.random() * 0.07) * cloud.spread, age: 0, life: 3 + Math.random() * 3, phase: Math.random() * 6.28 });
         };
 
+        // Until this time the drops stay apart (after a fast move, or while a phrase is up).
+        let scatteredUntil = -Infinity;
+
         // A click (or tap) sends a ripple out from the pointer, and the next phrase splashes out of
         // the nearest drop letter by letter, then drips away.
         const click = { x: 0, y: 0, z: 0, at: -Infinity };
@@ -425,6 +441,36 @@ export default function FluidHero({ phrases, hint }: { phrases: string[]; hint: 
             const k = FOCAL / (DIST - d.z);
             return { x: rect.width / 2 + d.x * k * rect.height, y: rect.height / 2 - d.y * k * rect.height };
         };
+        // While a phrase is up, the drops keep out of its box (in scene units) and do not regroup.
+        const phraseBox = { x0: 0, x1: 0, y0: 0, y1: 0, until: -Infinity };
+        const toWorldX = (px: number, rect: DOMRect) => ((px - rect.width / 2) / rect.height) * toWorld;
+        const toWorldY = (py: number, rect: DOMRect) => ((rect.height / 2 - py) / rect.height) * toWorld;
+
+        // Pick a place for the phrase that the drops do not cover: a few spots between the header
+        // and the headline (and, failing that, lower down), scored by how much water is in the way.
+        const freeSpot = (width: number, height: number, rect: DOMRect, clickX: number) => {
+            const top = 96;
+            const ys = [top + height / 2 + 8, rect.height * 0.22, rect.height * 0.3, rect.height * 0.42];
+            const xs = [clickX, rect.width * 0.3, rect.width * 0.5, rect.width * 0.7];
+            let best = { x: rect.width / 2, y: ys[0], score: Infinity };
+            for (const y of ys) {
+                for (const rawX of xs) {
+                    const x = Math.min(Math.max(rawX, width / 2 + 16), rect.width - width / 2 - 16);
+                    let score = Math.abs(x - clickX) * 0.02;
+                    for (const d of drops) {
+                        const pos = toScreen(d, rect);
+                        const r = d.r * cloud.spread * (FOCAL / (DIST - d.z)) * rect.height;
+                        const dx = Math.max(Math.abs(pos.x - x) - width / 2, 0);
+                        const dy = Math.max(Math.abs(pos.y - y) - height / 2, 0);
+                        const gap = Math.hypot(dx, dy) - r;
+                        if (gap < 40) score += 40 - gap;
+                    }
+                    if (score < best.score) best = { x, y, score };
+                }
+            }
+            return best;
+        };
+
         const showPhrase = (clientX: number, clientY: number) => {
             if (!phraseEl || phrases.length === 0) return;
             const rect = canvas.getBoundingClientRect();
@@ -454,31 +500,70 @@ export default function FluidHero({ phrases, hint }: { phrases: string[]; hint: 
             }
             const from = toScreen(source, rect);
 
+            const phrase = phrases[phraseIndex % phrases.length];
+            phraseIndex++;
             window.clearTimeout(phraseTimer);
             phraseEl.className = styles.heroPhrase;
             phraseEl.replaceChildren();
-            const letters = Array.from(phrases[phraseIndex % phrases.length]).map((ch) => {
-                const span = document.createElement('span');
-                span.className = styles.heroLetter;
-                span.textContent = ch === ' ' ? '\u00a0' : ch;
-                phraseEl.appendChild(span);
-                return span;
+            // Words are kept whole so long titles wrap between words; each letter is its own span.
+            const letters: HTMLSpanElement[] = [];
+            phrase.text.split(' ').forEach((word, w) => {
+                if (w > 0) phraseEl.appendChild(document.createTextNode(' '));
+                const wordEl = document.createElement('span');
+                wordEl.className = styles.heroWord;
+                for (const ch of Array.from(word)) {
+                    const span = document.createElement('span');
+                    span.className = styles.heroLetter;
+                    span.textContent = ch;
+                    wordEl.appendChild(span);
+                    letters.push(span);
+                }
+                phraseEl.appendChild(wordEl);
             });
-            phraseIndex++;
-            // Centre the line above the click, kept inside the hero.
-            const half = phraseEl.offsetWidth / 2 + 16;
-            phraseEl.style.left = `${Math.min(Math.max(clickX, half), rect.width - half)}px`;
-            phraseEl.style.top = `${Math.max(clickY - 70, 90)}px`;
+            const spot = freeSpot(phraseEl.offsetWidth, phraseEl.offsetHeight + (phrase.href ? 40 : 0), rect, clickX);
+            phraseEl.style.left = `${spot.x}px`;
+            phraseEl.style.top = `${spot.y}px`;
             // Each letter starts inside the drop and flies to its place in the line.
             letters.forEach((span, i) => {
                 const box = span.getBoundingClientRect();
                 span.style.setProperty('--dx', `${from.x - (box.left + box.width / 2 - rect.left)}px`);
                 span.style.setProperty('--dy', `${from.y - (box.top + box.height / 2 - rect.top)}px`);
                 span.style.setProperty('--spin', `${(Math.random() - 0.5) * 90}deg`);
-                span.style.setProperty('--delay', `${i * 26}ms`);
+                span.style.setProperty('--delay', `${i * 22}ms`);
             });
             requestAnimationFrame(() => phraseEl.classList.add(styles.heroPhraseOn));
-            phraseTimer = window.setTimeout(() => phraseEl.classList.add(styles.heroPhraseOut), 2800 + letters.length * 26);
+
+            // The phrase stays for 3.5s once its letters have landed; meanwhile the drops keep
+            // clear of it and stay apart, and only then come back together.
+            const splash = 900 + letters.length * 22;
+            const visibleFor = splash + 3500;
+            const box = phraseEl.getBoundingClientRect();
+            const pad = 40;
+            phraseBox.x0 = toWorldX(box.left - rect.left - pad, rect);
+            phraseBox.x1 = toWorldX(box.right - rect.left + pad, rect);
+            phraseBox.y0 = toWorldY(box.bottom - rect.top + pad + (phrase.href ? 40 : 0), rect);
+            phraseBox.y1 = toWorldY(box.top - rect.top - pad, rect);
+            phraseBox.until = performance.now() + visibleFor;
+            scatteredUntil = Math.max(scatteredUntil, phraseBox.until);
+
+            if (readEl) {
+                readEl.classList.remove(styles.heroReadOn);
+                readEl.tabIndex = -1;
+                if (phrase.href) {
+                    readEl.href = phrase.href;
+                    readEl.style.left = `${spot.x}px`;
+                    readEl.style.top = `${box.bottom - rect.top + 14}px`;
+                    window.setTimeout(() => {
+                        readEl.classList.add(styles.heroReadOn);
+                        readEl.tabIndex = 0;
+                    }, splash - 300);
+                }
+            }
+            phraseTimer = window.setTimeout(() => {
+                phraseEl.classList.add(styles.heroPhraseOut);
+                readEl?.classList.remove(styles.heroReadOn);
+                if (readEl) readEl.tabIndex = -1;
+            }, visibleFor);
         };
         const onClick = (e: PointerEvent) => {
             hintEl?.classList.add(styles.heroHintGone);
@@ -519,7 +604,6 @@ export default function FluidHero({ phrases, hint }: { phrases: string[]; hint: 
         const shapeData = new Float32Array(spheres * 4);
         const smooth = { x: 0, y: 0 };
         let cohesion = reduceMotion ? 1 : 0;
-        let scatteredUntil = -Infinity;
         let last = performance.now();
         let time = 0;
         let slowFrames = 0;
@@ -548,7 +632,7 @@ export default function FluidHero({ phrases, hint }: { phrases: string[]; hint: 
             const speed = Math.hypot(pvx, pvy);
             const recent = pointer.active && now - pointer.lastMove < 2500;
             // A fast move breaks the body apart, and the drops stay apart for a moment before regrouping.
-            if (speed > 5) scatteredUntil = now + 1400;
+            if (speed > 5) scatteredUntil = Math.max(scatteredUntil, now + 1400);
             const want = reduceMotion ? 1 : recent && now > scatteredUntil ? 1 : 0;
             // Cohesion drops over a few tenths of a second, so the body stretches before it tears.
             cohesion += (want - cohesion) * Math.min(dt * (want > cohesion ? 1.2 : 3), 1);
@@ -613,9 +697,35 @@ export default function FluidHero({ phrases, hint }: { phrases: string[]; hint: 
                 d.vx += ((tx - d.x) * k - d.vx * damping) * dt;
                 d.vy += ((ty - d.y) * k - d.vy * damping) * dt;
                 d.vz += ((tz - d.z) * k - d.vz * damping) * dt;
+                // Keep clear of a phrase on screen: a drop inside its box (grown by the drop's
+                // radius) is pushed out through the nearest side.
+                const radius = d.r * cloud.spread;
+                if (now < phraseBox.until) {
+                    const left = d.x - (phraseBox.x0 - radius);
+                    const right = phraseBox.x1 + radius - d.x;
+                    const below = d.y - (phraseBox.y0 - radius);
+                    const above = phraseBox.y1 + radius - d.y;
+                    if (left > 0 && right > 0 && below > 0 && above > 0) {
+                        const exit = Math.min(left, right, below, above);
+                        const push = 90 * exit + 8;
+                        if (exit === left) d.vx -= push * dt;
+                        else if (exit === right) d.vx += push * dt;
+                        else if (exit === below) d.vy -= push * dt;
+                        else d.vy += push * dt;
+                    }
+                }
                 d.x += d.vx * dt;
                 d.y += d.vy * dt;
                 d.z += d.vz * dt;
+                // Stay below the header and inside the screen's sides.
+                if (d.y > bounds.top - radius) {
+                    d.y = bounds.top - radius;
+                    d.vy = Math.min(d.vy, 0) * 0.3;
+                }
+                if (Math.abs(d.x) > bounds.side - radius) {
+                    d.x = Math.sign(d.x) * (bounds.side - radius);
+                    d.vx *= -0.3;
+                }
                 dropData[i * 4] = d.x;
                 dropData[i * 4 + 1] = d.y;
                 dropData[i * 4 + 2] = d.z;
@@ -654,6 +764,7 @@ export default function FluidHero({ phrases, hint }: { phrases: string[]; hint: 
                 p.x += p.vx * dt;
                 p.y += p.vy * dt;
                 p.z += p.vz * dt;
+                if (p.y > bounds.top) p.age = p.life;
                 const absorbed = p.age > 0.6 && drops.some((d) => Math.hypot(d.x - p.x, d.y - p.y, d.z - p.z) < d.r * cloud.spread);
                 if (absorbed || p.age > p.life) spray.splice(j, 1);
             }
@@ -722,6 +833,10 @@ export default function FluidHero({ phrases, hint }: { phrases: string[]; hint: 
             <span ref={hintRef} className={styles.heroHint} aria-hidden="true">
                 {hint}
             </span>
+            {/* Under an MPGA title, a link to that edition. */}
+            <a ref={readRef} className={styles.heroRead} target="_blank" rel="noreferrer" tabIndex={-1}>
+                {readLabel} <span aria-hidden="true">↗</span>
+            </a>
         </>
     );
 }
