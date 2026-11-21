@@ -120,16 +120,16 @@ export const profile = {
                 url: 'https://www.linkedin.com/pulse/portugal-%C3%A9-o-oitavo-melhor-pa%C3%ADs-para-viver-e-%C3%BAltimo-trabalhar-silva-mnwue/'
             },
             {
-                // TODO: link and date of the edition
                 title: 'O preço de não pagar.',
+                date: '2026-05-19',
                 summary: 'Preço e valor nos serviços criativos.',
-                url: 'https://www.linkedin.com/newsletters/make-people-great-again-7392191024183296001/'
+                url: 'https://www.linkedin.com/pulse/o-pre%C3%A7o-de-n%C3%A3o-pagar-nuno-silva-qwwxe/'
             },
             {
-                // TODO: link and date of the edition
                 title: 'Os homens não falam. Nem na reunião de segunda.',
+                date: '2026-10-27',
                 summary: 'Pessoas primeiro, na primeira pessoa.',
-                url: 'https://www.linkedin.com/newsletters/make-people-great-again-7392191024183296001/'
+                url: 'https://www.linkedin.com/pulse/os-homens-n%C3%A3o-falam-nem-na-reuni%C3%A3o-de-segunda-nuno-silva-zpvje/'
             },
             {
                 title: 'Não tenho carro há seis anos. Não é virtude, é código postal.',
