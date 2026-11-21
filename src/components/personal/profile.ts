@@ -130,6 +130,9 @@ export const profile = {
             pt: 'Mais de 50 edições semanais desde novembro de 2025 · Escrita em português'
         },
         url: 'https://www.linkedin.com/newsletters/make-people-great-again-7392191024183296001/',
+        // MPGA titles a click on the hero's drops shows (in Portuguese in both languages), after the
+        // site's own phrases. Each must match an edition below, whose link appears under it.
+        heroTitles: ['Os homens não falam. Nem na reunião de segunda', 'Portugal é o oitavo melhor país para viver. E o último para trabalhar.', 'O preço de não pagar'],
         // Editions shown on the site, newest first, with titles exactly as on LinkedIn. To add one,
         // copy a block and change its fields.
         issues: [

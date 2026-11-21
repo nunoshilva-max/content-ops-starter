@@ -36,11 +36,24 @@ export default function ContactForm({ lang }: { lang: Lang }) {
     if (status === 'sent') {
         return (
             <div className={styles.formDone} role="status">
+                {/* Two drops (the sender and me) run into each other and become one. The blur and
+                    contrast filter is what makes overlapping circles melt like liquid. */}
+                <svg className={styles.mergeDrops} viewBox="0 0 160 64" aria-hidden="true">
+                    <defs>
+                        <filter id="merge-goo">
+                            <feGaussianBlur in="SourceGraphic" stdDeviation="5" />
+                            <feColorMatrix values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 22 -9" />
+                        </filter>
+                    </defs>
+                    <g filter="url(#merge-goo)">
+                        <circle className={styles.mergeLeft} cx="80" cy="32" r="16" />
+                        <circle className={styles.mergeRight} cx="80" cy="32" r="16" />
+                    </g>
+                </svg>
                 <p className={styles.formDoneTitle}>
                     {t.doneTitle[0]}
                     <em>{t.doneTitle[1]}</em>
                 </p>
-                <p>{t.doneText}</p>
                 <button type="button" className={styles.formLink} onClick={() => setStatus('idle')}>
                     {t.again}
                 </button>

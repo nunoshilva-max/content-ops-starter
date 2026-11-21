@@ -204,10 +204,39 @@
     font-family: var(--serif);
     font-style: italic;
     font-size: clamp(22px, 2.2vw, 34px);
-    white-space: nowrap;
+    line-height: 1.2;
+    width: max-content;
+    max-width: min(86vw, 720px);
+    text-align: center;
     color: var(--fg);
     text-shadow: 0 2px 24px rgba(7, 7, 10, 0.8);
     transform: translate(-50%, -50%);
+}
+
+/* Words stay whole so long titles wrap between them. */
+.heroWord {
+    display: inline-block;
+    white-space: nowrap;
+}
+
+/* Under an MPGA title: a quiet link to that edition. */
+.heroRead {
+    position: absolute;
+    z-index: 3;
+    transform: translate(-50%, 6px);
+    font-size: 14px;
+    color: var(--accent);
+    text-decoration: underline;
+    text-underline-offset: 4px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.5s, transform 0.6s cubic-bezier(0.2, 0.9, 0.2, 1);
+}
+
+.heroReadOn {
+    opacity: 1;
+    transform: translate(-50%, 0);
+    pointer-events: auto;
 }
 
 /* Letters splash out of a drop (--dx/--dy point back at it), then drip away. */
@@ -253,8 +282,7 @@
 }
 
 .heroFallback {
-    background: radial-gradient(60% 50% at 70% 40%, rgba(122, 61, 245, 0.55), transparent 70%),
-        radial-gradient(40% 40% at 30% 70%, rgba(255, 92, 77, 0.4), transparent 70%), var(--bg);
+    background: radial-gradient(40% 45% at 70% 40%, rgba(205, 255, 92, 0.12), transparent 70%), var(--bg);
 }
 
 .heroInner {
@@ -1440,6 +1468,45 @@
     color: var(--muted);
 }
 
+.mergeDrops circle {
+    transform-box: fill-box;
+    transform-origin: center;
+}
+
+.mergeDrops {
+    display: block;
+    width: 160px;
+    height: 64px;
+    margin-bottom: 20px;
+    fill: var(--accent);
+}
+
+.mergeLeft {
+    animation: mergeLeft 1.4s cubic-bezier(0.2, 0.9, 0.2, 1) both;
+}
+
+.mergeRight {
+    animation: mergeRight 1.4s cubic-bezier(0.2, 0.9, 0.2, 1) both;
+}
+
+@keyframes mergeLeft {
+    from {
+        transform: translateX(-56px) scale(0.7);
+    }
+    to {
+        transform: none;
+    }
+}
+
+@keyframes mergeRight {
+    from {
+        transform: translateX(56px) scale(0.7);
+    }
+    to {
+        transform: none;
+    }
+}
+
 .formDoneTitle {
     font-size: clamp(32px, 4vw, 64px);
     letter-spacing: -0.045em;
@@ -1726,6 +1793,10 @@
     .nav,
     .heroHint {
         transition: none;
+    }
+    .mergeLeft,
+    .mergeRight {
+        animation: none;
     }
     .marqueeTrack,
     .writing blockquote::after,

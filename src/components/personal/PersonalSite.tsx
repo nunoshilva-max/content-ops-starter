@@ -1,7 +1,7 @@
 import * as React from 'react';
 import ConsentBanner, { openConsent } from './ConsentBanner';
 import ContactForm from './ContactForm';
-import FluidHero from './FluidHero';
+import FluidHero, { HeroPhrase } from './FluidHero';
 import SiteHead from './SiteHead';
 import { profile, tr, Lang, Experience } from './profile';
 import { ui } from './ui';
@@ -327,6 +327,15 @@ export default function PersonalSite({ lang }: { lang: Lang }) {
     const t = ui[lang];
     const other: Lang = lang === 'en' ? 'pt' : 'en';
     const [lead, ...rest] = tr(profile.tagline, lang).split(', ');
+    // Phrases a click on the drops shows, in order: the site's own lines, then MPGA titles with a
+    // link to their edition. Memoised so the hero is not set up again on every re-render.
+    const heroPhrases = React.useMemo<HeroPhrase[]>(
+        () => [
+            ...t.heroPhrases.map((text) => ({ text })),
+            ...profile.newsletter.heroTitles.map((title) => ({ text: title, href: profile.newsletter.issues.find((issue) => issue.title === title)?.url }))
+        ],
+        [t]
+    );
     const sections = [
         { id: 'writing', label: t.sections.writing },
         { id: 'about', label: t.sections.about },
@@ -392,7 +401,7 @@ export default function PersonalSite({ lang }: { lang: Lang }) {
 
             <main id="top">
                 <section className={styles.hero}>
-                    <FluidHero phrases={t.heroPhrases} hint={t.hint} />
+                    <FluidHero phrases={heroPhrases} hint={t.hint} readLabel={t.readEdition} />
                     <div className={styles.heroInner}>
                         <p className={styles.heroEyebrow}>{tr(profile.eyebrow, lang)}</p>
                         <h1 className={styles.heroTitle}>
