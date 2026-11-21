@@ -41,4 +41,5 @@ yarn-error.log*
 *.code-workspace
 .idea
 
-tmp*tsconfig.tsbuildinfo
+tmp*
+tsconfig.tsbuildinfo
