@@ -94,7 +94,7 @@ export default function PrivacyPage({ lang }: { lang: Lang }) {
     const navClass = useNavState();
     return (
         <div className={styles.site}>
-            <SiteHead lang={lang} title={`${c.title} — ${profile.name}`} description={c.title} path="privacy/" />
+            <SiteHead lang={lang} title={`${c.title} · ${profile.name}`} description={c.title} path="privacy/" />
             <header className={navClass}>
                 <a href={t.home} className={styles.logo} aria-label={profile.name}>
                     nuno<span>·</span>silva

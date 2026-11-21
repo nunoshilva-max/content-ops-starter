@@ -3,7 +3,7 @@ import ConsentBanner, { openConsent } from './ConsentBanner';
 import ContactForm from './ContactForm';
 import FluidHero from './FluidHero';
 import SiteHead from './SiteHead';
-import { profile, tr, Lang } from './profile';
+import { profile, tr, Lang, Experience } from './profile';
 import { ui } from './ui';
 import styles from './personal.module.css';
 
@@ -20,15 +20,19 @@ function Cursor() {
         const pos = { x: -100, y: -100 };
         const target = { x: -100, y: -100 };
         let raf = 0;
-        const onMove = (e: PointerEvent) => {
-            target.x = e.clientX;
-            target.y = e.clientY;
-            const element = e.target as Element;
-            el.classList.toggle(styles.cursorActive, !!element.closest?.(zones));
-            const hot = element.closest?.('a, button');
+        const update = (element: Element | null) => {
+            el.classList.toggle(styles.cursorActive, !!element?.closest?.(zones));
+            const hot = element?.closest?.('a, button');
             el.classList.toggle(styles.cursorHot, !!hot);
             el.dataset.label = hot?.getAttribute('data-cursor') || '';
         };
+        const onMove = (e: PointerEvent) => {
+            target.x = e.clientX;
+            target.y = e.clientY;
+            update(e.target as Element);
+        };
+        // Scrolling moves the page under a still pointer: check again what it is over.
+        const onScroll = () => update(document.elementFromPoint(target.x, target.y));
         const tick = () => {
             pos.x += (target.x - pos.x) * 0.2;
             pos.y += (target.y - pos.y) * 0.2;
@@ -36,10 +40,12 @@ function Cursor() {
             raf = requestAnimationFrame(tick);
         };
         window.addEventListener('pointermove', onMove, { passive: true });
+        window.addEventListener('scroll', onScroll, { passive: true });
         raf = requestAnimationFrame(tick);
         return () => {
             cancelAnimationFrame(raf);
             window.removeEventListener('pointermove', onMove);
+            window.removeEventListener('scroll', onScroll);
             document.documentElement.classList.remove(styles.hasCursor);
         };
     }, []);
@@ -303,13 +309,15 @@ function formatDate(iso: string, lang: Lang) {
     return `${day} ${ui[lang].months[month - 1]} ${year}`;
 }
 
-// Each numbered section's heading: the small label with its number, as the section's <h2>.
-function SectionLabel({ index, children }: { index: string; children: React.ReactNode }) {
+// Each numbered section's heading: the small label with its number, as the section's <h2>. In
+// About the big statement is the heading, so there the label is plain text.
+function SectionLabel({ index, heading = true, children }: { index: string; heading?: boolean; children: React.ReactNode }) {
+    const Tag = heading ? 'h2' : 'p';
     return (
-        <h2 className={`${styles.label} ${styles.reveal}`}>
+        <Tag className={`${styles.label} ${styles.reveal}`}>
             <span>{index}</span>
             {children}
-        </h2>
+        </Tag>
     );
 }
 
@@ -320,10 +328,10 @@ export default function PersonalSite({ lang }: { lang: Lang }) {
     const other: Lang = lang === 'en' ? 'pt' : 'en';
     const [lead, ...rest] = tr(profile.tagline, lang).split(', ');
     const sections = [
-        { id: 'about', label: t.sections.about },
         { id: 'writing', label: t.sections.writing },
-        { id: 'speaking', label: t.sections.speaking },
+        { id: 'about', label: t.sections.about },
         { id: 'work', label: t.sections.work },
+        { id: 'speaking', label: t.sections.speaking },
         { id: 'bring', label: t.sections.bring },
         { id: 'path', label: t.sections.path },
         { id: 'recognition', label: t.sections.recognition },
@@ -333,9 +341,35 @@ export default function PersonalSite({ lang }: { lang: Lang }) {
     // Section numbers follow the order above, so hiding a section never leaves a gap.
     const number = (id: string) => String(sections.findIndex((section) => section.id === id) + 1).padStart(2, '0');
 
+    const pathRow = (item: Experience) => (
+        <li key={item.company + item.role.en}>
+            <span className={styles.pathPeriod}>{tr(item.period, lang)}</span>
+            <div className={styles.pathMain}>
+                {item.url ? (
+                    <a href={item.url} target="_blank" rel="noreferrer" className={styles.pathLink}>
+                        <h3>{item.company}</h3>
+                        <span aria-hidden="true">↗</span>
+                    </a>
+                ) : (
+                    <h3>{item.company}</h3>
+                )}
+                <p className={styles.pathRole}>
+                    {tr(item.role, lang)} · {item.place}
+                </p>
+            </div>
+            <p className={styles.pathText}>{tr(item.description, lang)}</p>
+        </li>
+    );
+    const earlierRoles = profile.experience.filter((item) => item.more);
+
     return (
         <div className={styles.site}>
-            <SiteHead lang={lang} title={`${profile.name} — ${tr(profile.tagline, lang)}`} description={`${profile.name} — ${tr(profile.eyebrow, lang)}. ${tr(profile.statement, lang)}`} path="" />
+            <SiteHead
+                lang={lang}
+                title={`${profile.name} · ${tr(profile.tagline, lang)}`}
+                description={`${profile.name} · ${tr(profile.eyebrow, lang)}. ${tr(profile.heroLine, lang)}`}
+                path=""
+            />
             <Cursor />
 
             <header className={navClass}>
@@ -343,10 +377,10 @@ export default function PersonalSite({ lang }: { lang: Lang }) {
                     nuno<span>·</span>silva
                 </a>
                 <nav className={styles.navLinks}>
-                    <a href="#about">{t.nav.about}</a>
                     <a href="#writing">{t.nav.writing}</a>
-                    <a href="#speaking">{t.nav.speaking}</a>
+                    <a href="#about">{t.nav.about}</a>
                     <a href="#work">{t.nav.work}</a>
+                    <a href="#speaking">{t.nav.speaking}</a>
                     <a href={ui[other].home} className={styles.langSwitch} hrefLang={other} lang={other} title={t.switchTitle}>
                         {t.switchLabel}
                     </a>
@@ -358,11 +392,9 @@ export default function PersonalSite({ lang }: { lang: Lang }) {
 
             <main id="top">
                 <section className={styles.hero}>
-                    <FluidHero phrases={t.heroPhrases} />
+                    <FluidHero phrases={t.heroPhrases} hint={t.hint} />
                     <div className={styles.heroInner}>
-                        <p className={styles.heroEyebrow}>
-                            {tr(profile.eyebrow, lang)} — {tr(profile.location, lang)}
-                        </p>
+                        <p className={styles.heroEyebrow}>{tr(profile.eyebrow, lang)}</p>
                         <h1 className={styles.heroTitle}>
                             <span className={styles.line}>{lead},</span>
                             <span className={styles.line}>
@@ -370,8 +402,15 @@ export default function PersonalSite({ lang }: { lang: Lang }) {
                             </span>
                         </h1>
                         <div className={styles.heroFoot}>
-                            <p>{tr(profile.statement, lang)}</p>
-                            <span className={styles.scrollHint}>{t.hint}</span>
+                            <p>{tr(profile.heroLine, lang)}</p>
+                            <div className={styles.heroActions}>
+                                <a href="#writing" className={styles.subscribe} data-cursor={t.readCursor}>
+                                    {t.readMpga} <span aria-hidden="true">↓</span>
+                                </a>
+                                <a href="#contact" className={styles.heroLink}>
+                                    {t.nav.talk}
+                                </a>
+                            </div>
                         </div>
                     </div>
                 </section>
@@ -388,40 +427,13 @@ export default function PersonalSite({ lang }: { lang: Lang }) {
                     </div>
                 </div>
 
-                <section id="about" className={styles.section}>
-                    <SectionLabel index={number('about')}>{t.sections.about}</SectionLabel>
-                    <div className={styles.aboutHead}>
-                        <p className={`${styles.statement} ${styles.reveal}`}>
-                            {t.statement[0]}
-                            <em>{t.statement[1]}</em>
-                            {t.statement[2]}
-                            <em>{t.statement[3]}</em>
-                        </p>
-                        <Portrait lang={lang} />
-                    </div>
-                    <div className={styles.aboutGrid}>
-                        {profile.about.map((paragraph) => (
-                            <p key={paragraph.en.slice(0, 24)}>{tr(paragraph, lang)}</p>
-                        ))}
-                    </div>
-                    <dl className={styles.numbers}>
-                        {profile.numbers.map((item) => (
-                            <div key={item.label.en} className={styles.reveal}>
-                                <dt>{tr(item.label, lang)}</dt>
-                                <dd>{item.value}</dd>
-                            </div>
-                        ))}
-                    </dl>
-                </section>
-
                 <section id="writing" className={`${styles.section} ${styles.writing}`}>
                     <SectionLabel index={number('writing')}>{t.sections.writing}</SectionLabel>
                     <div className={`${styles.writingHead} ${styles.reveal}`}>
                         <div>
                             <h3>{profile.newsletter.name}</h3>
-                            <p>
-                                {tr(profile.newsletter.text, lang)} {t.writtenIn}
-                            </p>
+                            <p className={styles.writingProof}>{tr(profile.newsletter.proof, lang)}</p>
+                            <p>{tr(profile.newsletter.text, lang)}</p>
                         </div>
                         <a href={profile.newsletter.url} target="_blank" rel="noreferrer" className={styles.subscribe} data-cursor={t.subscribeCursor}>
                             {t.subscribe} <span aria-hidden="true">↗</span>
@@ -446,6 +458,91 @@ export default function PersonalSite({ lang }: { lang: Lang }) {
                         </ul>
                     )}
                     <blockquote>“{tr(profile.quote, lang)}”</blockquote>
+                </section>
+
+                <section id="about" className={styles.section}>
+                    <SectionLabel index={number('about')} heading={false}>
+                        {t.sections.about}
+                    </SectionLabel>
+                    <div className={styles.aboutHead}>
+                        <h2 className={`${styles.statement} ${styles.reveal}`}>
+                            {t.statement[0]}
+                            <em>{t.statement[1]}</em>
+                            {t.statement[2]}
+                            <em>{t.statement[3]}</em>
+                        </h2>
+                        <Portrait lang={lang} />
+                    </div>
+                    <p className={styles.scene}>{tr(profile.scene, lang)}</p>
+                    <div className={styles.aboutGrid}>
+                        {profile.about.map((paragraph) => (
+                            <p key={paragraph.en.slice(0, 24)}>{tr(paragraph, lang)}</p>
+                        ))}
+                    </div>
+                    <dl className={styles.numbers}>
+                        {profile.numbers.map((item) => (
+                            <div key={item.label.en} className={styles.reveal}>
+                                <dt>{tr(item.label, lang)}</dt>
+                                <dd>{item.value}</dd>
+                            </div>
+                        ))}
+                    </dl>
+                </section>
+
+                <section id="work" className={styles.section}>
+                    <SectionLabel index={number('work')}>{t.sections.work}</SectionLabel>
+                    <div className={styles.work}>
+                        {profile.work.map((item, i) => {
+                            // A typographic card: the project name and its key number. The film's
+                            // still shows on hover or focus at its natural size, in black and white
+                            // (RTP's is sharp enough to fill the card).
+                            const face = (
+                                <>
+                                    {item.image && (
+                                        <span className={item.cover ? styles.workCover : styles.workThumb}>
+                                            <WorkImage src={item.image} fallback={item.imageFallback} alt={`${item.client}, ${item.title}`} />
+                                        </span>
+                                    )}
+                                    <span className={styles.workType} aria-hidden="true">
+                                        <span className={styles.workTypeTitle}>{item.title}</span>
+                                        <span className={styles.workTypeKey}>{tr(item.key, lang)}</span>
+                                    </span>
+                                </>
+                            );
+                            return (
+                                <article
+                                    key={item.title}
+                                    className={i === 0 ? `${styles.workCard} ${styles.reveal}` : styles.workCard}
+                                    style={{ '--hue': item.hue } as React.CSSProperties}
+                                >
+                                    {item.youtube ? (
+                                        <YouTubeEmbed id={item.youtube} title={`${item.client}, ${item.title}`} lang={lang}>
+                                            {face}
+                                        </YouTubeEmbed>
+                                    ) : (
+                                        <a href={item.url} target="_blank" rel="noreferrer" className={styles.workArt} data-cursor={t.visitCursor}>
+                                            {face}
+                                        </a>
+                                    )}
+                                    <div className={styles.workMeta}>
+                                        <p className={styles.workClient}>
+                                            {item.client} <span>{item.year}</span>
+                                        </p>
+                                        <h3>{item.title}</h3>
+                                        <ul>
+                                            {item.stats.map((stat) => (
+                                                <li key={stat.en}>{tr(stat, lang)}</li>
+                                            ))}
+                                        </ul>
+                                        {item.award && <p className={styles.award}>{tr(item.award, lang)}</p>}
+                                        <a href={item.url} target="_blank" rel="noreferrer" className={styles.workLink}>
+                                            {item.url.includes('youtu') ? t.watch : t.visit} ↗
+                                        </a>
+                                    </div>
+                                </article>
+                            );
+                        })}
+                    </div>
                 </section>
 
                 <section id="speaking" className={styles.section}>
@@ -479,54 +576,6 @@ export default function PersonalSite({ lang }: { lang: Lang }) {
                     </div>
                 </section>
 
-                <section id="work" className={styles.section}>
-                    <SectionLabel index={number('work')}>{t.sections.work}</SectionLabel>
-                    <div className={styles.work}>
-                        {profile.work.map((item, i) => {
-                            const index = (
-                                <span className={styles.workIndex} aria-hidden="true">
-                                    {String(i + 1).padStart(2, '0')}
-                                </span>
-                            );
-                            const image = item.image && <WorkImage src={item.image} fallback={item.imageFallback} alt={`${item.client} — ${item.title}`} />;
-                            return (
-                                <article
-                                    key={item.title}
-                                    className={i === 0 ? `${styles.workCard} ${styles.reveal}` : styles.workCard}
-                                    style={{ '--hue': item.hue } as React.CSSProperties}
-                                >
-                                    {item.youtube ? (
-                                        <YouTubeEmbed id={item.youtube} title={`${item.client} — ${item.title}`} lang={lang}>
-                                            {image}
-                                            {index}
-                                        </YouTubeEmbed>
-                                    ) : (
-                                        <a href={item.url} target="_blank" rel="noreferrer" className={styles.workArt} data-cursor={t.visitCursor}>
-                                            {image}
-                                            {index}
-                                        </a>
-                                    )}
-                                    <div className={styles.workMeta}>
-                                        <p className={styles.workClient}>
-                                            {item.client} <span>{item.year}</span>
-                                        </p>
-                                        <h3>{item.title}</h3>
-                                        <ul>
-                                            {item.stats.map((stat) => (
-                                                <li key={stat.en}>{tr(stat, lang)}</li>
-                                            ))}
-                                        </ul>
-                                        {item.award && <p className={styles.award}>{tr(item.award, lang)}</p>}
-                                        <a href={item.url} target="_blank" rel="noreferrer" className={styles.workLink}>
-                                            {item.url.includes('youtu') ? t.watch : t.visit} ↗
-                                        </a>
-                                    </div>
-                                </article>
-                            );
-                        })}
-                    </div>
-                </section>
-
                 <section id="bring" className={styles.section}>
                     <SectionLabel index={number('bring')}>{t.sections.bring}</SectionLabel>
                     <ol className={`${styles.bring} ${styles.reveal}`}>
@@ -541,27 +590,13 @@ export default function PersonalSite({ lang }: { lang: Lang }) {
 
                 <section id="path" className={styles.section}>
                     <SectionLabel index={number('path')}>{t.sections.path}</SectionLabel>
-                    <ul className={`${styles.path} ${styles.reveal}`}>
-                        {profile.experience.map((item) => (
-                            <li key={item.company + item.role.en}>
-                                <span className={styles.pathPeriod}>{tr(item.period, lang)}</span>
-                                <div className={styles.pathMain}>
-                                    {item.url ? (
-                                        <a href={item.url} target="_blank" rel="noreferrer" className={styles.pathLink}>
-                                            <h3>{item.company}</h3>
-                                            <span aria-hidden="true">↗</span>
-                                        </a>
-                                    ) : (
-                                        <h3>{item.company}</h3>
-                                    )}
-                                    <p className={styles.pathRole}>
-                                        {tr(item.role, lang)} · {item.place}
-                                    </p>
-                                </div>
-                                <p className={styles.pathText}>{tr(item.description, lang)}</p>
-                            </li>
-                        ))}
-                    </ul>
+                    <ul className={`${styles.path} ${styles.reveal}`}>{profile.experience.filter((item) => !item.more).map(pathRow)}</ul>
+                    {earlierRoles.length > 0 && (
+                        <details className={styles.pathMore}>
+                            <summary>{t.fullPath}</summary>
+                            <ul className={styles.path}>{earlierRoles.map(pathRow)}</ul>
+                        </details>
+                    )}
                 </section>
 
                 <section id="recognition" className={styles.section}>
