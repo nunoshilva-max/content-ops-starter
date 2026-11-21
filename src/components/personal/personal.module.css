@@ -312,9 +312,60 @@
     max-width: 32ch;
 }
 
-.scrollHint {
+@media (max-width: 640px) {
+    .heroFoot {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+}
+
+.heroActions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 14px 28px;
+    /* The hero text layer lets clicks through to the drops; its links must catch them. */
+    pointer-events: auto;
+}
+
+.heroLink {
+    text-decoration: underline;
+    text-decoration-color: var(--line);
+    text-underline-offset: 6px;
+    transition: color 0.3s, text-decoration-color 0.3s;
+}
+
+.heroLink:hover {
+    color: var(--accent);
+    text-decoration-color: var(--accent);
+}
+
+.heroHint {
+    position: absolute;
+    z-index: 2;
+    pointer-events: none;
+    transform: translateX(-50%);
+    font-size: 14px;
+    letter-spacing: 0.04em;
     color: var(--muted);
     white-space: nowrap;
+    transition: opacity 0.6s, transform 0.6s cubic-bezier(0.2, 0.9, 0.2, 1);
+}
+
+.heroHint::before {
+    content: '';
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    margin-right: 10px;
+    border-radius: 50%;
+    background: var(--accent);
+    vertical-align: middle;
+}
+
+.heroHintGone {
+    opacity: 0;
+    transform: translate(-50%, -8px);
 }
 
 @keyframes rise {
@@ -472,6 +523,16 @@
     }
 }
 
+.scene {
+    margin-top: clamp(48px, 9vh, 96px);
+    max-width: 34ch;
+    font-family: var(--serif);
+    font-style: italic;
+    font-size: clamp(24px, 2.4vw, 38px);
+    line-height: 1.25;
+    letter-spacing: -0.01em;
+}
+
 .aboutGrid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
@@ -564,12 +625,10 @@
     aspect-ratio: 16 / 10;
     border-radius: 6px;
     overflow: hidden;
-    background: radial-gradient(70% 90% at 25% 30%, hsl(var(--hue) 90% 62%), transparent 60%),
-        radial-gradient(60% 80% at 80% 75%, hsl(calc(var(--hue) + 60) 85% 45%), transparent 65%),
-        radial-gradient(50% 50% at 60% 20%, hsl(calc(var(--hue) - 40) 90% 70% / 0.8), transparent 70%), #111018;
-    background-size: 140% 140%;
-    background-position: 50% 50%;
-    transition: background-position 1.2s cubic-bezier(0.2, 0.9, 0.2, 1), border-radius 0.8s cubic-bezier(0.2, 0.9, 0.2, 1);
+    border: 1px solid var(--line);
+    background: radial-gradient(90% 120% at 0% 100%, hsl(var(--hue) 70% 45% / 0.28), transparent 60%), #0e0e13;
+    color: var(--fg);
+    transition: border-color 0.4s, background-color 0.4s;
 }
 
 .workArt::after {
@@ -592,35 +651,105 @@
     filter: saturate(0.9) contrast(1.05);
 }
 
-.workCard:hover .workImage {
-    transform: scale(1.08);
-    filter: none;
-}
-
 .workImageLetterbox {
     transform: scale(1.14);
 }
 
-.workCard:hover .workImageLetterbox {
-    transform: scale(1.2);
+.workCard:hover .workArt {
+    border-color: rgba(242, 239, 233, 0.35);
 }
 
-.workCard:hover .workArt {
-    background-position: 0% 100%;
-    border-radius: 48px;
+/* The project name and key number, set in type. */
+.workType {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    gap: 14px;
+    padding: clamp(24px, 3vw, 40px);
+    transition: opacity 0.5s cubic-bezier(0.2, 0.9, 0.2, 1);
+}
+
+.workTypeTitle {
+    font-family: var(--serif);
+    font-style: italic;
+    font-size: clamp(44px, 6vw, 104px);
+    line-height: 0.95;
+    letter-spacing: -0.02em;
+}
+
+.workTypeKey {
+    font-size: clamp(14px, 1.1vw, 17px);
+    color: var(--accent);
+}
+
+/* The film's still, at its natural size (at most 480px) and in black and white, on hover or focus. */
+.workThumb {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    z-index: 2;
+    width: min(480px, 62%);
+    aspect-ratio: 16 / 9;
+    overflow: hidden;
+    border-radius: 4px;
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
+    opacity: 0;
+    transform: translate(-50%, -46%) scale(0.96);
+    transition: opacity 0.45s, transform 0.6s cubic-bezier(0.2, 0.9, 0.2, 1);
+    pointer-events: none;
+}
+
+.workArt:hover .workThumb,
+.workArt:focus-visible .workThumb {
+    opacity: 1;
+    transform: translate(-50%, -50%);
+}
+
+.workArt:hover .workThumb ~ .workType,
+.workArt:focus-visible .workThumb ~ .workType {
+    opacity: 0.25;
+}
+
+/* RTP's still is sharp enough to fill the card, under a shade that keeps the type legible. */
+.workCover {
+    position: absolute;
+    inset: 0;
+}
+
+.workCover::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to top, rgba(7, 7, 10, 0.9), rgba(7, 7, 10, 0.25) 70%);
+}
+
+.workThumb .workImage,
+.workCover .workImage {
+    filter: grayscale(0.85) contrast(1.05);
+}
+
+.workCover .workImage {
+    transform: scale(1.02);
+    transition: transform 1.2s cubic-bezier(0.2, 0.9, 0.2, 1);
+}
+
+.workArt:hover .workCover .workImage {
+    transform: scale(1.06);
 }
 
 /* Play button over YouTube thumbnails; the player only loads on click. */
 .playIcon {
     position: absolute;
-    top: 50%;
-    left: 50%;
-    z-index: 2;
-    width: clamp(64px, 7vw, 96px);
-    height: clamp(64px, 7vw, 96px);
+    top: clamp(20px, 2.5vw, 32px);
+    right: clamp(20px, 2.5vw, 32px);
+    z-index: 3;
+    width: clamp(56px, 5vw, 76px);
+    height: clamp(56px, 5vw, 76px);
     border-radius: 50%;
     background: rgba(242, 239, 233, 0.92);
-    transform: translate(-50%, -50%);
     transition: transform 0.5s cubic-bezier(0.2, 0.9, 0.2, 1), background 0.3s;
 }
 
@@ -636,7 +765,7 @@
 }
 
 .workArt:hover .playIcon {
-    transform: translate(-50%, -50%) scale(1.12);
+    transform: scale(1.1);
     background: var(--accent);
 }
 
@@ -675,19 +804,6 @@
 .workLink:hover {
     color: var(--accent);
     border-color: var(--accent);
-}
-
-.workIndex {
-    position: absolute;
-    left: 24px;
-    bottom: 12px;
-    z-index: 1;
-    font-family: var(--serif);
-    font-style: italic;
-    font-size: clamp(80px, 12vw, 200px);
-    line-height: 1;
-    color: rgba(255, 255, 255, 0.9);
-    mix-blend-mode: overlay;
 }
 
 .workClient {
@@ -797,6 +913,47 @@
     .path li {
         grid-template-columns: 1fr;
     }
+}
+
+.pathMore summary {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 24px 0;
+    border-bottom: 1px solid var(--line);
+    font-size: 15px;
+    color: var(--muted);
+    cursor: pointer;
+    list-style: none;
+    transition: color 0.3s;
+}
+
+.pathMore summary::-webkit-details-marker {
+    display: none;
+}
+
+.pathMore summary::before {
+    content: '+';
+    display: inline-grid;
+    place-items: center;
+    width: 26px;
+    height: 26px;
+    border: 1px solid var(--line);
+    border-radius: 50%;
+    color: var(--accent);
+    transition: transform 0.4s cubic-bezier(0.2, 0.9, 0.2, 1);
+}
+
+.pathMore[open] summary::before {
+    transform: rotate(45deg);
+}
+
+.pathMore summary:hover {
+    color: var(--fg);
+}
+
+.pathMore .path {
+    border-top: 0;
 }
 
 .pathPeriod {
@@ -928,6 +1085,14 @@
     color: var(--muted);
     font-size: 18px;
     line-height: 1.5;
+}
+
+.writingHead .writingProof {
+    max-width: none;
+    margin-top: 12px;
+    color: var(--accent);
+    font-size: 15px;
+    letter-spacing: 0.02em;
 }
 
 .writingHead {
@@ -1558,7 +1723,8 @@
         transform: none;
         transition: none;
     }
-    .nav {
+    .nav,
+    .heroHint {
         transition: none;
     }
     .marqueeTrack,

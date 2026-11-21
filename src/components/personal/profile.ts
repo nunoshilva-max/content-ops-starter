@@ -13,6 +13,8 @@ export type Experience = {
     place: string;
     description: Text;
     url?: string;
+    // Earlier roles, shown inside "Full path" rather than open.
+    more?: boolean;
 };
 
 export type Issue = {
@@ -36,6 +38,10 @@ export type Work = {
     imageFallback?: string;
     // YouTube video id: the card plays the film inline instead of linking out.
     youtube?: string;
+    // The key number shown on the typographic card.
+    key: Text;
+    // Show the image across the whole card (only when it is sharp enough, as for RTP).
+    cover?: boolean;
     hue: number;
 };
 
@@ -58,7 +64,11 @@ export const profile = {
     role: 'Engagement Manager @ WYcreative',
     location: { en: 'Lisbon, Portugal', pt: 'Lisboa, Portugal' },
     photo: '/images/nuno-silva.jpg',
-    eyebrow: { en: 'Speaker · Jury member · Author of MPGA', pt: 'Orador · Membro de júri · Autor da MPGA' },
+    eyebrow: { en: '30 years building digital · Author of MPGA · Lisbon', pt: '30 anos a construir digital · Autor da MPGA · Lisboa' },
+    heroLine: {
+        en: 'I write every week about what happens to people when technology moves faster than organisations.',
+        pt: 'Escrevo todas as semanas sobre o que acontece às pessoas quando a tecnologia anda mais depressa do que as organizações.'
+    },
     tagline: {
         en: 'Technology in service of people, not the other way around.',
         pt: 'A tecnologia ao serviço das pessoas, e não o contrário.'
@@ -66,6 +76,11 @@ export const profile = {
     statement: {
         en: 'I make sure what agencies promise is what clients get.',
         pt: 'Garanto que o que as agências prometem é o que os clientes recebem.'
+    },
+    // The opening scene of the About section. Draft: Nuno confirms the facts before publishing.
+    scene: {
+        en: '1996. Brands were still burning CD-ROMs, and the internet sounded like a modem. I was building websites at Portugal Telecom and, two years later, information kiosks for Expo’98, for people who had never touched a screen. Thirty years later, the screens are everywhere. The question hasn’t changed: who is this for?',
+        pt: '1996. As marcas ainda gravavam CD-ROMs e a internet tinha o som de um modem. Eu fazia sites na Portugal Telecom e, dois anos depois, os quiosques de informação da Expo’98, para pessoas que nunca tinham tocado num ecrã. Trinta anos depois, os ecrãs estão em todo o lado. A pergunta não mudou: isto é para quem?'
     },
     about: [
         {
@@ -85,7 +100,8 @@ export const profile = {
         { value: '1996', label: { en: 'Building digital since', pt: 'A construir digital desde' } },
         { value: '22', label: { en: 'Years running Wiz Interactive', pt: 'Anos à frente da Wiz Interactive' } },
         { value: '100+', label: { en: 'Clients served', pt: 'Clientes' } },
-        { value: '80+', label: { en: 'National & international awards', pt: 'Prémios nacionais e internacionais' } },
+        // 70+ digital and 7 international awards (see Recognition). To confirm with Nuno.
+        { value: '75+', label: { en: 'National and international awards', pt: 'Prémios nacionais e internacionais' } },
         { value: '2×', label: { en: 'Digital Agency of the Year', pt: 'Agência Digital do Ano' } }
     ],
     clients: [
@@ -104,44 +120,48 @@ export const profile = {
         'Expo’98'
     ],
     newsletter: {
-        name: 'MPGA — Make People Great Again',
+        name: 'MPGA: Make People Great Again',
         text: {
             en: 'A weekly newsletter on leadership, culture and the place of people in an increasingly automated world.',
             pt: 'Uma newsletter semanal sobre liderança, cultura e o lugar das pessoas num mundo cada vez mais automatizado.'
         },
+        proof: {
+            en: '50+ weekly editions since November 2025 · Written in Portuguese',
+            pt: 'Mais de 50 edições semanais desde novembro de 2025 · Escrita em português'
+        },
         url: 'https://www.linkedin.com/newsletters/make-people-great-again-7392191024183296001/',
-        // Editions shown on the site, in this order (strongest first). To add one, copy a block and
-        // change its fields; an edition without its own link points to the newsletter page.
+        // Editions shown on the site, newest first, with titles exactly as on LinkedIn. To add one,
+        // copy a block and change its fields.
         issues: [
             {
-                title: 'Portugal é o oitavo melhor país para viver. E o último para trabalhar.',
-                date: '2026-09-01',
-                summary: 'Cultura de trabalho em Portugal.',
-                url: 'https://www.linkedin.com/pulse/portugal-%C3%A9-o-oitavo-melhor-pa%C3%ADs-para-viver-e-%C3%BAltimo-trabalhar-silva-mnwue/'
-            },
-            {
-                title: 'O preço de não pagar.',
-                date: '2026-05-19',
-                summary: 'Preço e valor nos serviços criativos.',
-                url: 'https://www.linkedin.com/pulse/o-pre%C3%A7o-de-n%C3%A3o-pagar-nuno-silva-qwwxe/'
-            },
-            {
-                title: 'Os homens não falam. Nem na reunião de segunda.',
+                title: 'Os homens não falam. Nem na reunião de segunda',
                 date: '2026-10-27',
                 summary: 'Pessoas primeiro, na primeira pessoa.',
-                url: 'https://www.linkedin.com/pulse/os-homens-n%C3%A3o-falam-nem-na-reuni%C3%A3o-de-segunda-nuno-silva-zpvje/'
+                url: 'https://www.linkedin.com/pulse/os-homens-n%C3%A3o-falam-nem-na-reuni%C3%A3o-de-segunda-nuno-silva-zpvje'
             },
             {
                 title: 'Não tenho carro há seis anos. Não é virtude, é código postal.',
                 date: '2026-10-13',
                 summary: 'Lisboa vista na primeira pessoa.',
-                url: 'https://www.linkedin.com/pulse/n%C3%A3o-tenho-carro-h%C3%A1-seis-anos-%C3%A9-virtude-c%C3%B3digo-postal-nuno-silva-zmfpe/'
+                url: 'https://www.linkedin.com/pulse/n%C3%A3o-tenho-carro-h%C3%A1-seis-anos-%C3%A9-virtude-c%C3%B3digo-postal-nuno-silva-zmfpe'
+            },
+            {
+                title: 'Portugal é o oitavo melhor país para viver. E o último para trabalhar.',
+                date: '2026-09-01',
+                summary: 'Cultura de trabalho em Portugal.',
+                url: 'https://www.linkedin.com/pulse/portugal-%C3%A9-o-oitavo-melhor-pa%C3%ADs-para-viver-e-%C3%BAltimo-trabalhar-silva-mnwue'
             },
             {
                 title: 'Ninguém te ensinou a fazer o luto de uma profissão',
                 date: '2026-05-25',
                 summary: 'Carreira, mudança e o que a IA e o mercado fazem às pessoas.',
-                url: 'https://www.linkedin.com/pulse/ningu%C3%A9m-te-ensinou-fazer-o-luto-de-uma-profiss%C3%A3o-nuno-silva-xmmqe/'
+                url: 'https://www.linkedin.com/pulse/ningu%C3%A9m-te-ensinou-fazer-o-luto-de-uma-profiss%C3%A3o-nuno-silva-xmmqe'
+            },
+            {
+                title: 'O preço de não pagar',
+                date: '2026-05-19',
+                summary: 'Preço e valor nos serviços criativos.',
+                url: 'https://www.linkedin.com/pulse/o-pre%C3%A7o-de-n%C3%A3o-pagar-nuno-silva-qwwxe'
             }
         ] as Issue[]
     },
@@ -185,22 +205,22 @@ export const profile = {
         stages: [
             {
                 year: '2026',
-                title: { en: 'Guest lecturer — Digital Marketing', pt: 'Professor convidado — Marketing Digital' },
+                title: { en: 'Guest lecturer, Digital Marketing', pt: 'Professor convidado, Marketing Digital' },
                 by: { en: 'Iscte, Master’s in Human Resource Management', pt: 'Iscte, Mestrado em Gestão de Recursos Humanos' }
             },
             {
                 year: '2017',
-                title: { en: 'Jury member — Digital', pt: 'Membro do júri — Digital' },
+                title: { en: 'Jury member, Digital', pt: 'Membro do júri, Digital' },
                 by: { en: 'CCP Festival', pt: 'Festival CCP' }
             },
             {
                 year: '2014',
-                title: { en: 'Jury member — Internet/Cyber', pt: 'Membro do júri — Internet/Cyber' },
+                title: { en: 'Jury member, Internet/Cyber', pt: 'Membro do júri, Internet/Cyber' },
                 by: { en: 'Young Lions', pt: 'Young Lions' }
             },
             {
                 year: '2012',
-                title: { en: 'Jury member — Interactive', pt: 'Membro do júri — Interativo' },
+                title: { en: 'Jury member, Interactive', pt: 'Membro do júri, Interativo' },
                 by: { en: 'El Ojo de Iberoamérica', pt: 'El Ojo de Iberoamérica' }
             }
         ]
@@ -209,7 +229,7 @@ export const profile = {
         {
             client: 'Mateus Rosé',
             title: 'Taste Is',
-            year: '2009 — 2014',
+            year: '2009–2014',
             url: 'https://youtu.be/CpUrjkKmero',
             youtube: 'CpUrjkKmero',
             image: 'https://i.ytimg.com/vi/CpUrjkKmero/maxresdefault.jpg',
@@ -219,6 +239,7 @@ export const profile = {
                 { en: '24k visitors from 27 countries in 3 months', pt: '24 mil visitantes de 27 países em 3 meses' },
                 { en: '10k+ user-generated images', pt: 'Mais de 10 mil imagens criadas pelos utilizadores' }
             ],
+            key: { en: '24k visitors · 27 countries', pt: '24 mil visitantes · 27 países' },
             hue: 340
         },
         {
@@ -231,9 +252,11 @@ export const profile = {
             imageFallback: 'https://i.ytimg.com/vi/eyG7A_yrC1A/hqdefault.jpg',
             stats: [
                 { en: '150k unique visitors in year one', pt: '150 mil visitantes únicos no primeiro ano' },
-                { en: '12-minute average engagement — 3× benchmark', pt: '12 minutos de visita média — 3× a referência do setor' }
+                { en: '12-minute average engagement, 3× the benchmark', pt: '12 minutos de visita média, 3× a referência do setor' }
             ],
-            award: { en: 'Best Editorial Website · Best UX/UI — CCP', pt: 'Melhor Website Editorial · Melhor UX/UI — CCP' },
+            key: { en: '150k visitors in year one', pt: '150 mil visitantes no primeiro ano' },
+            cover: true,
+            award: { en: 'Best Editorial Website · Best UX/UI · CCP', pt: 'Melhor Website Editorial · Melhor UX/UI · CCP' },
             hue: 210
         },
         {
@@ -246,21 +269,22 @@ export const profile = {
             imageFallback: 'https://i.ytimg.com/vi/7N0ZwgdgnoU/hqdefault.jpg',
             stats: [
                 {
-                    en: '2nd Finalist — Best Local Agency, El Ojo de Iberoamérica',
-                    pt: '2.º finalista — Melhor Agência Local, El Ojo de Iberoamérica'
+                    en: '2nd finalist, Best Local Agency, El Ojo de Iberoamérica',
+                    pt: '2.º finalista, Melhor Agência Local, El Ojo de Iberoamérica'
                 }
             ],
-            award: { en: 'Gold — El Ojo de Iberoamérica', pt: 'Ouro — El Ojo de Iberoamérica' },
+            key: { en: 'Gold · El Ojo de Iberoamérica', pt: 'Ouro · El Ojo de Iberoamérica' },
+            award: { en: 'Gold, El Ojo de Iberoamérica', pt: 'Ouro, El Ojo de Iberoamérica' },
             hue: 45
         }
     ] as Work[],
     bring: [
         {
-            title: { en: 'Client & stakeholder management', pt: 'Gestão de clientes e stakeholders' },
+            title: { en: 'Client and stakeholder management', pt: 'Gestão de clientes e stakeholders' },
             text: { en: 'From day-to-day delivery to C-level conversations.', pt: 'Da entrega do dia a dia às conversas com a administração.' }
         },
         {
-            title: { en: 'Digital strategy & transformation', pt: 'Estratégia e transformação digital' },
+            title: { en: 'Digital strategy and transformation', pt: 'Estratégia e transformação digital' },
             text: { en: 'From roadmap to execution.', pt: 'Do roadmap à execução.' }
         },
         {
@@ -270,8 +294,8 @@ export const profile = {
         {
             title: { en: 'Technology that serves the business', pt: 'Tecnologia ao serviço do negócio' },
             text: {
-                en: 'Analytics, martech and AI — chosen for ROI, not hype.',
-                pt: 'Analytics, martech e IA — escolhidos pelo retorno, não pela moda.'
+                en: 'Analytics, martech and AI, chosen for ROI, not hype.',
+                pt: 'Analytics, martech e IA, escolhidos pelo retorno, não pela moda.'
             }
         }
     ],
@@ -280,17 +304,17 @@ export const profile = {
             role: { en: 'Engagement Manager', pt: 'Engagement Manager' },
             company: 'WYcreative',
             url: 'https://wycreative.com/',
-            period: { en: '2026 — Now', pt: '2026 — Hoje' },
+            period: { en: '2026–now', pt: '2026–hoje' },
             place: 'Oeiras',
             description: {
-                en: 'Client & Partnership team at WYgroup. Making sure projects deliver what was agreed — on time, scope and quality — and spotting opportunities to grow each relationship.',
-                pt: 'Equipa de Client & Partnership do WYgroup. Garanto que os projetos entregam o que foi acordado — no prazo, no âmbito e na qualidade — e procuro oportunidades para fazer crescer cada relação.'
+                en: 'Client & Partnership team at WYgroup. Making sure projects deliver what was agreed, on time, scope and quality, and spotting opportunities to grow each relationship.',
+                pt: 'Equipa de Client & Partnership do WYgroup. Garanto que os projetos entregam o que foi acordado, no prazo, no âmbito e na qualidade, e procuro oportunidades para fazer crescer cada relação.'
             }
         },
         {
             role: { en: 'Head of Digital', pt: 'Head of Digital' },
             company: 'BUS Creative Agency',
-            period: { en: '2020 — 2026', pt: '2020 — 2026' },
+            period: { en: '2020–2026', pt: '2020–2026' },
             place: 'Lisboa',
             description: {
                 en: '+40% digital revenue, −68% external vendor costs, −60% weekly planning time. Operations across Portugal and Angola, 25+ concurrent client projects, AI integrated across creative and strategy.',
@@ -298,9 +322,9 @@ export const profile = {
             }
         },
         {
-            role: { en: 'Co-Founder & Partner', pt: 'Cofundador e sócio' },
+            role: { en: 'Co-Founder and Partner', pt: 'Cofundador e sócio' },
             company: 'Wiz Interactive',
-            period: { en: '1998 — 2020', pt: '1998 — 2020' },
+            period: { en: '1998–2020', pt: '1998–2020' },
             place: 'Bairro Alto',
             description: {
                 en: 'Scaled from startup to market leader: 700% revenue growth, team of 3 to 26, 100+ clients and an average client retention of 10 years.',
@@ -310,7 +334,8 @@ export const profile = {
         {
             role: { en: 'Co-Founder', pt: 'Cofundador' },
             company: 'Affinità',
-            period: { en: '2017 — 2020', pt: '2017 — 2020' },
+            more: true,
+            period: { en: '2017–2020', pt: '2017–2020' },
             place: 'Lisboa',
             description: {
                 en: 'A collective of independent professionals and agencies united by creativity, collaboration and strategic brand storytelling.',
@@ -318,9 +343,9 @@ export const profile = {
             }
         },
         {
-            role: { en: 'Senior Web Designer & UX/UI Developer', pt: 'Senior Web Designer e UX/UI Developer' },
+            role: { en: 'Senior Web Designer and UX/UI Developer', pt: 'Senior Web Designer e UX/UI Developer' },
             company: 'Portugal Telecom',
-            period: { en: '1996 — 1998', pt: '1996 — 1998' },
+            period: { en: '1996–1998', pt: '1996–1998' },
             place: 'Miraflores',
             description: {
                 en: 'Start-to-end web projects for TV Cabo, PT + Telepac, the Portuguese Golf Association and the Expo’98 information kiosks.',
@@ -328,9 +353,10 @@ export const profile = {
             }
         },
         {
-            role: { en: 'IT Manager & Developer', pt: 'Responsável de Informática e Programador' },
-            company: 'Promática — Grupo Banco Fonsecas & Burnay',
-            period: { en: '1991 — 1995', pt: '1991 — 1995' },
+            role: { en: 'IT Manager and Developer', pt: 'Responsável de Informática e Programador' },
+            company: 'Promática, Grupo Banco Fonsecas & Burnay',
+            more: true,
+            period: { en: '1991–1995', pt: '1991–1995' },
             place: 'Lisboa',
             description: {
                 en: 'IT infrastructure and in-house applications: billing, document management and more.',
@@ -341,17 +367,17 @@ export const profile = {
     recognition: [
         { year: '2010 · 2014', title: { en: 'Digital Agency of the Year', pt: 'Agência Digital do Ano' }, by: 'Meios & Publicidade' },
         { year: '2016', title: { en: 'Technical Agency of the Year', pt: 'Agência Técnica do Ano' }, by: 'CCP' },
-        { year: '2012', title: { en: 'Gold — Bien Público', pt: 'Ouro — Bien Público' }, by: 'El Ojo de Iberoamérica' },
-        { year: '2003 — 2012', title: { en: '7 international awards', pt: '7 prémios internacionais' }, by: 'Wiz Interactive' },
-        { year: '2000 — 2018', title: { en: '70+ digital awards', pt: 'Mais de 70 prémios digitais' }, by: 'Wiz Interactive' }
+        { year: '2012', title: { en: 'Gold, Bien Público', pt: 'Ouro, Bien Público' }, by: 'El Ojo de Iberoamérica' },
+        { year: '2003–2012', title: { en: '7 international awards', pt: '7 prémios internacionais' }, by: 'Wiz Interactive' },
+        { year: '2000–2018', title: { en: '70+ digital awards', pt: 'Mais de 70 prémios digitais' }, by: 'Wiz Interactive' }
     ],
     education: [
         {
             school: 'Faculdade de Ciências da Universidade de Lisboa',
             degree: { en: 'M.Sc. Computer Science', pt: 'Mestrado em Informática' }
         },
-        { school: 'IN IMPETUS — Escola de Actores', degree: { en: 'Acting course', pt: 'Curso de teatro' } },
-        { school: 'Evoé — School of Actors', degree: { en: 'Acting course', pt: 'Curso de teatro' } }
+        { school: 'IN IMPETUS, Escola de Actores', degree: { en: 'Acting course', pt: 'Curso de teatro' } },
+        { school: 'Evoé, School of Actors', degree: { en: 'Acting course', pt: 'Curso de teatro' } }
     ],
     languages: { en: 'Portuguese · English · Spanish', pt: 'Português · Inglês · Espanhol' },
     // LinkedIn recommendations shown on the site, in this order; the section is hidden while this is empty.
@@ -367,14 +393,14 @@ export const profile = {
         {
             quote: 'He is focused, committed and always looking for the best results for their clients. As a client I felt good to know that I could count with Nuno experience and availability to build and implement the marketing digital strategy of a global brand like Sandeman.',
             name: 'Catarina Soares',
-            role: 'International Sales & Marketing, Wine Business',
+            role: 'International Sales and Marketing, Wine Business',
             relation: CLIENT,
             year: '2013'
         },
         {
             quote: 'It was great working with Nuno. He has this positive outlook on things and he was very likeable to work with. He was strong in his technical skills and gave me confidence he was doing a good job.',
             name: 'Andreia Vaz',
-            role: 'Head of Brand & CX, Worten',
+            role: 'Head of Brand and CX, Worten',
             relation: CLIENT,
             year: '2016'
         },

@@ -267,14 +267,16 @@ type Spray = {
     phase: number;
 };
 
-export default function FluidHero({ phrases }: { phrases: string[] }) {
+export default function FluidHero({ phrases, hint }: { phrases: string[]; hint: string }) {
     const canvasRef = React.useRef<HTMLCanvasElement>(null);
     const phraseRef = React.useRef<HTMLSpanElement>(null);
+    const hintRef = React.useRef<HTMLSpanElement>(null);
     const [fallback, setFallback] = React.useState(false);
 
     React.useEffect(() => {
         const canvas = canvasRef.current;
         const phraseEl = phraseRef.current;
+        const hintEl = hintRef.current;
         const gl = canvas?.getContext('webgl', { antialias: false, alpha: false, powerPreference: 'high-performance' });
         if (!gl) {
             setFallback(true);
@@ -334,6 +336,11 @@ export default function FluidHero({ phrases }: { phrases: string[] }) {
             cloud.x = (aspect > 1 ? aspect * 0.2 : 0) * toWorld;
             cloud.y = (aspect > 1 ? 0.1 : 0.2) * toWorld;
             cloud.spread = aspect > 1 ? 1 : 0.62;
+            // The "click the drop" hint sits just above the resting drops.
+            if (hintEl) {
+                hintEl.style.left = `${rect.width / 2 + (cloud.x / toWorld) * rect.height}px`;
+                hintEl.style.top = `${Math.max(96, rect.height / 2 - (cloud.y / toWorld) * rect.height - rect.height * 0.27)}px`;
+            }
         };
         resize();
 
@@ -474,6 +481,7 @@ export default function FluidHero({ phrases }: { phrases: string[] }) {
             phraseTimer = window.setTimeout(() => phraseEl.classList.add(styles.heroPhraseOut), 2800 + letters.length * 26);
         };
         const onClick = (e: PointerEvent) => {
+            hintEl?.classList.add(styles.heroHintGone);
             setPointer(e.clientX, e.clientY);
             click.x = pointer.x;
             click.y = pointer.y;
@@ -705,12 +713,15 @@ export default function FluidHero({ phrases }: { phrases: string[] }) {
             canvas.removeEventListener('pointerdown', onClick);
             gl.getExtension('WEBGL_lose_context')?.loseContext();
         };
-    }, [phrases]);
+    }, [phrases, hint]);
 
     return (
         <>
             <canvas ref={canvasRef} className={fallback ? `${styles.heroCanvas} ${styles.heroFallback}` : styles.heroCanvas} aria-hidden="true" />
             <span ref={phraseRef} className={styles.heroPhrase} aria-hidden="true" />
+            <span ref={hintRef} className={styles.heroHint} aria-hidden="true">
+                {hint}
+            </span>
         </>
     );
 }

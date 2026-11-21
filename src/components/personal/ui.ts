@@ -8,7 +8,8 @@ export const ui = {
         switchLabel: 'PT',
         switchTitle: 'Ver em português',
         nav: { about: 'About', writing: 'Writing', speaking: 'Speaking', work: 'Work', talk: 'Let’s talk', talkCursor: 'Say hi' },
-        hint: 'Move. Click. Scroll.',
+        hint: 'Click the drop.',
+        readMpga: 'Read MPGA',
         heroPhrases: ['There is no wave separated from the ocean.', 'The wave IS the ocean.', 'Technology in service of people.'],
         clients: 'Selected clients',
         sections: {
@@ -19,16 +20,15 @@ export const ui = {
             bring: 'What I bring',
             path: 'Path',
             recognition: 'Recognition',
-            testimonials: 'Recommendations',
+            testimonials: 'What people said along the way',
             contact: 'Contact'
         },
         statement: ['I make sure what agencies ', 'promise', ' is what clients ', 'get.'],
         subscribe: 'Subscribe on LinkedIn',
         subscribeCursor: 'Subscribe',
-        writtenIn: 'Written in Portuguese.',
         readCursor: 'Read',
         speakingTopics: 'Topics',
-        speakingStages: 'Juries & lectures',
+        speakingStages: 'Juries and lectures',
         invite: 'Invite me to speak',
         play: 'Play',
         playCursor: 'Play',
@@ -67,6 +67,7 @@ export const ui = {
         },
         footerPrivacy: 'Privacy',
         allRecommendations: 'All recommendations on LinkedIn',
+        fullPath: 'Full path',
         dragCursor: 'Drag'
     },
     pt: {
@@ -75,7 +76,8 @@ export const ui = {
         switchLabel: 'EN',
         switchTitle: 'View in English',
         nav: { about: 'Sobre', writing: 'Escrita', speaking: 'Palestras', work: 'Trabalho', talk: 'Vamos falar', talkCursor: 'Olá' },
-        hint: 'Mexa. Clique. Desça.',
+        hint: 'Clica na gota.',
+        readMpga: 'Ler a MPGA',
         heroPhrases: ['Não há onda separada do oceano.', 'A onda É o oceano.', 'A tecnologia ao serviço das pessoas.'],
         clients: 'Alguns clientes',
         sections: {
@@ -86,13 +88,12 @@ export const ui = {
             bring: 'O que trago',
             path: 'Percurso',
             recognition: 'Reconhecimento',
-            testimonials: 'Recomendações',
+            testimonials: 'O que foram dizendo pelo caminho',
             contact: 'Contacto'
         },
         statement: ['Garanto que o que as agências ', 'prometem', ' é o que os clientes ', 'recebem.'],
         subscribe: 'Subscrever no LinkedIn',
         subscribeCursor: 'Subscrever',
-        writtenIn: '',
         readCursor: 'Ler',
         speakingTopics: 'Temas',
         speakingStages: 'Júris e aulas',
@@ -134,6 +135,7 @@ export const ui = {
         },
         footerPrivacy: 'Privacidade',
         allRecommendations: 'Todas as recomendações no LinkedIn',
+        fullPath: 'Percurso completo',
         dragCursor: 'Arrastar'
     }
 } satisfies Record<Lang, unknown>;
