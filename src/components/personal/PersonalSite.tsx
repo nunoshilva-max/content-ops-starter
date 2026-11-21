@@ -385,9 +385,9 @@ export default function PersonalSite({ lang }: { lang: Lang }) {
                     {profile.newsletter.issues.length > 0 && (
                         <ul className={styles.issues}>
                             {profile.newsletter.issues.map((issue) => (
-                                <li key={issue.date + issue.title} className={styles.reveal}>
+                                <li key={issue.title} className={styles.reveal}>
                                     <a href={issue.url} target="_blank" rel="noreferrer" lang="pt" data-cursor={t.readCursor}>
-                                        <time dateTime={issue.date}>{formatDate(issue.date, lang)}</time>
+                                        {issue.date ? <time dateTime={issue.date}>{formatDate(issue.date, lang)}</time> : <span aria-hidden="true" />}
                                         <span className={styles.issueMain}>
                                             <strong>{issue.title}</strong>
                                             {issue.summary && <span>{issue.summary}</span>}

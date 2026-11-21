@@ -18,8 +18,8 @@ export type Experience = {
 export type Issue = {
     // Editions are written in Portuguese, so titles are not translated.
     title: string;
-    // ISO date (YYYY-MM-DD)
-    date: string;
+    // ISO date (YYYY-MM-DD); leave out while unknown.
+    date?: string;
     summary?: string;
     url: string;
 };
@@ -110,22 +110,37 @@ export const profile = {
             pt: 'Uma newsletter semanal sobre liderança, cultura e o lugar das pessoas num mundo cada vez mais automatizado.'
         },
         url: 'https://www.linkedin.com/newsletters/make-people-great-again-7392191024183296001/',
-        // Editions shown on the site, newest first. To add one, copy a block and change its fields:
-        // { title: '…', date: '2026-10-20', summary: 'One sentence.', url: 'https://www.linkedin.com/pulse/…' },
+        // Editions shown on the site, in this order (strongest first). To add one, copy a block and
+        // change its fields; an edition without its own link points to the newsletter page.
         issues: [
-            {
-                title: 'Não tenho carro há seis anos. Não é virtude, é código postal.',
-                date: '2026-10-13',
-                url: 'https://www.linkedin.com/pulse/n%C3%A3o-tenho-carro-h%C3%A1-seis-anos-%C3%A9-virtude-c%C3%B3digo-postal-nuno-silva-zmfpe/'
-            },
             {
                 title: 'Portugal é o oitavo melhor país para viver. E o último para trabalhar.',
                 date: '2026-09-01',
+                summary: 'Cultura de trabalho em Portugal.',
                 url: 'https://www.linkedin.com/pulse/portugal-%C3%A9-o-oitavo-melhor-pa%C3%ADs-para-viver-e-%C3%BAltimo-trabalhar-silva-mnwue/'
+            },
+            {
+                // TODO: link and date of the edition
+                title: 'O preço de não pagar.',
+                summary: 'Preço e valor nos serviços criativos.',
+                url: 'https://www.linkedin.com/newsletters/make-people-great-again-7392191024183296001/'
+            },
+            {
+                // TODO: link and date of the edition
+                title: 'Os homens não falam. Nem na reunião de segunda.',
+                summary: 'Pessoas primeiro, na primeira pessoa.',
+                url: 'https://www.linkedin.com/newsletters/make-people-great-again-7392191024183296001/'
+            },
+            {
+                title: 'Não tenho carro há seis anos. Não é virtude, é código postal.',
+                date: '2026-10-13',
+                summary: 'Lisboa vista na primeira pessoa.',
+                url: 'https://www.linkedin.com/pulse/n%C3%A3o-tenho-carro-h%C3%A1-seis-anos-%C3%A9-virtude-c%C3%B3digo-postal-nuno-silva-zmfpe/'
             },
             {
                 title: 'Ninguém te ensinou a fazer o luto de uma profissão',
                 date: '2026-05-25',
+                summary: 'Carreira, mudança e o que a IA e o mercado fazem às pessoas.',
                 url: 'https://www.linkedin.com/pulse/ningu%C3%A9m-te-ensinou-fazer-o-luto-de-uma-profiss%C3%A3o-nuno-silva-xmmqe/'
             }
         ] as Issue[]
