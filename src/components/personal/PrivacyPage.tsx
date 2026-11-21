@@ -1,5 +1,6 @@
 import * as React from 'react';
 import ConsentBanner, { openConsent } from './ConsentBanner';
+import { useNavState } from './PersonalSite';
 import SiteHead from './SiteHead';
 import { profile, Lang } from './profile';
 import { ui } from './ui';
@@ -90,10 +91,11 @@ const content = {
 export default function PrivacyPage({ lang }: { lang: Lang }) {
     const c = content[lang];
     const t = ui[lang];
+    const navClass = useNavState();
     return (
         <div className={styles.site}>
             <SiteHead lang={lang} title={`${c.title} — ${profile.name}`} description={c.title} path="privacy/" />
-            <header className={styles.nav}>
+            <header className={navClass}>
                 <a href={t.home} className={styles.logo} aria-label={profile.name}>
                     nuno<span>·</span>silva
                 </a>

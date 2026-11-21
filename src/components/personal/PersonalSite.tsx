@@ -7,20 +7,25 @@ import { profile, tr, Lang } from './profile';
 import { ui } from './ui';
 import styles from './personal.module.css';
 
-// Dot cursor that trails the pointer and grows over links. Only on devices with a fine pointer.
+// Dot cursor that trails the pointer and grows over links. Only on devices that can hover with a
+// fine pointer, and only over the hero and the work cards: everywhere else the native cursor
+// stays. The native cursor is hidden by a class added here, so if this script fails nothing is lost.
 function Cursor() {
     const ref = React.useRef<HTMLDivElement>(null);
     React.useEffect(() => {
-        if (!window.matchMedia('(pointer: fine)').matches) return;
+        if (!window.matchMedia('(hover: hover) and (pointer: fine)').matches) return;
         const el = ref.current;
         document.documentElement.classList.add(styles.hasCursor);
+        const zones = `.${styles.hero}, .${styles.workCard}`;
         const pos = { x: -100, y: -100 };
         const target = { x: -100, y: -100 };
         let raf = 0;
         const onMove = (e: PointerEvent) => {
             target.x = e.clientX;
             target.y = e.clientY;
-            const hot = (e.target as Element).closest?.('a, button, [data-cursor]');
+            const element = e.target as Element;
+            el.classList.toggle(styles.cursorActive, !!element.closest?.(zones));
+            const hot = element.closest?.('a, button');
             el.classList.toggle(styles.cursorHot, !!hot);
             el.dataset.label = hot?.getAttribute('data-cursor') || '';
         };
@@ -39,6 +44,25 @@ function Cursor() {
         };
     }, []);
     return <div ref={ref} className={styles.cursor} aria-hidden="true" />;
+}
+
+// The header gets a solid, blurred background once the page has scrolled past 80px, so it stays
+// readable over the content, and slides away while scrolling down (back on scrolling up).
+export function useNavState() {
+    const [state, setState] = React.useState({ scrolled: false, hidden: false });
+    React.useEffect(() => {
+        let last = window.scrollY;
+        const onScroll = () => {
+            const y = window.scrollY;
+            const hidden = y > 200 && y > last;
+            last = y;
+            setState((prev) => (prev.scrolled === y > 80 && prev.hidden === hidden ? prev : { scrolled: y > 80, hidden }));
+        };
+        onScroll();
+        window.addEventListener('scroll', onScroll, { passive: true });
+        return () => window.removeEventListener('scroll', onScroll);
+    }, []);
+    return [styles.nav, state.scrolled && styles.navScrolled, state.hidden && styles.navHidden].filter(Boolean).join(' ');
 }
 
 // Fades sections in as they scroll into view.
@@ -146,7 +170,7 @@ function Portrait({ lang }: { lang: Lang }) {
 // mouse or a finger (and keeps some momentum when released) or swiped on a trackpad, and slows
 // to a stop while the mouse is over it. The children hold two copies of the cards, so moving by
 // half the track's width brings it back to the same picture.
-function QuoteLoop({ label, children }: { label: string; children: React.ReactNode }) {
+function QuoteLoop({ label, name, children }: { label: string; name: string; children: React.ReactNode }) {
     const viewportRef = React.useRef<HTMLDivElement>(null);
     const trackRef = React.useRef<HTMLDivElement>(null);
 
@@ -159,6 +183,11 @@ function QuoteLoop({ label, children }: { label: string; children: React.ReactNo
         let speed = drift;
         let dragging = false;
         let hovering = false;
+        let focused = false;
+        // On touch screens a tap (a touch that barely moves) pauses or resumes the strip.
+        let tapPaused = false;
+        let downX = 0;
+        let downType = '';
         let lastX = 0;
         let lastTime = 0;
         let raf = 0;
@@ -168,7 +197,7 @@ function QuoteLoop({ label, children }: { label: string; children: React.ReactNo
             const dt = Math.min(Math.max((now - previous) / 1000, 0), 0.05);
             previous = now;
             if (!dragging) {
-                speed += ((hovering ? 0 : drift) - speed) * Math.min(dt * 3, 1);
+                speed += ((hovering || focused || tapPaused ? 0 : drift) - speed) * Math.min(dt * 3, 1);
                 offset += (speed + velocity) * dt;
                 velocity *= Math.pow(0.03, dt);
             }
@@ -182,6 +211,8 @@ function QuoteLoop({ label, children }: { label: string; children: React.ReactNo
             if (e.pointerType === 'mouse' && e.button !== 0) return;
             dragging = true;
             velocity = 0;
+            downX = e.clientX;
+            downType = e.pointerType;
             lastX = e.clientX;
             lastTime = e.timeStamp;
             viewport.setPointerCapture(e.pointerId);
@@ -196,7 +227,8 @@ function QuoteLoop({ label, children }: { label: string; children: React.ReactNo
             lastX = e.clientX;
             lastTime = e.timeStamp;
         };
-        const onUp = () => {
+        const onUp = (e: PointerEvent) => {
+            if (downType === 'touch' && e.type === 'pointerup' && Math.abs(e.clientX - downX) < 8) tapPaused = !tapPaused;
             dragging = false;
             velocity = Math.max(-3000, Math.min(3000, velocity));
             viewport.classList.remove(styles.quotesDragging);
@@ -206,6 +238,12 @@ function QuoteLoop({ label, children }: { label: string; children: React.ReactNo
         };
         const onLeave = () => {
             hovering = false;
+        };
+        const onFocusIn = () => {
+            focused = true;
+        };
+        const onFocusOut = (e: FocusEvent) => {
+            focused = viewport.contains(e.relatedTarget as Node);
         };
         // Horizontal trackpad swipes move the strip; vertical scrolling still scrolls the page.
         const onWheel = (e: WheelEvent) => {
@@ -221,6 +259,8 @@ function QuoteLoop({ label, children }: { label: string; children: React.ReactNo
         viewport.addEventListener('pointerenter', onEnter);
         viewport.addEventListener('pointerleave', onLeave);
         viewport.addEventListener('wheel', onWheel, { passive: false });
+        viewport.addEventListener('focusin', onFocusIn);
+        viewport.addEventListener('focusout', onFocusOut);
 
         // Only animate while the strip is on screen.
         const observer = new IntersectionObserver(([entry]) => {
@@ -242,11 +282,14 @@ function QuoteLoop({ label, children }: { label: string; children: React.ReactNo
             viewport.removeEventListener('pointerenter', onEnter);
             viewport.removeEventListener('pointerleave', onLeave);
             viewport.removeEventListener('wheel', onWheel);
+            viewport.removeEventListener('focusin', onFocusIn);
+            viewport.removeEventListener('focusout', onFocusOut);
         };
     }, []);
 
     return (
-        <div ref={viewportRef} className={styles.quotes} data-cursor={label}>
+        // Focusable, so keyboard users can stop the strip by tabbing to it.
+        <div ref={viewportRef} className={styles.quotes} data-cursor={label} tabIndex={0} role="region" aria-label={name}>
             <div ref={trackRef} className={styles.quotesTrack}>
                 {children}
             </div>
@@ -260,17 +303,19 @@ function formatDate(iso: string, lang: Lang) {
     return `${day} ${ui[lang].months[month - 1]} ${year}`;
 }
 
+// Each numbered section's heading: the small label with its number, as the section's <h2>.
 function SectionLabel({ index, children }: { index: string; children: React.ReactNode }) {
     return (
-        <p className={styles.label}>
+        <h2 className={`${styles.label} ${styles.reveal}`}>
             <span>{index}</span>
             {children}
-        </p>
+        </h2>
     );
 }
 
 export default function PersonalSite({ lang }: { lang: Lang }) {
     useReveal();
+    const navClass = useNavState();
     const t = ui[lang];
     const other: Lang = lang === 'en' ? 'pt' : 'en';
     const [lead, ...rest] = tr(profile.tagline, lang).split(', ');
@@ -293,7 +338,7 @@ export default function PersonalSite({ lang }: { lang: Lang }) {
             <SiteHead lang={lang} title={`${profile.name} — ${tr(profile.tagline, lang)}`} description={`${profile.name} — ${tr(profile.eyebrow, lang)}. ${tr(profile.statement, lang)}`} path="" />
             <Cursor />
 
-            <header className={styles.nav}>
+            <header className={navClass}>
                 <a href="#top" className={styles.logo} aria-label={profile.name}>
                     nuno<span>·</span>silva
                 </a>
@@ -334,7 +379,7 @@ export default function PersonalSite({ lang }: { lang: Lang }) {
                 <div className={styles.marquee} aria-label={t.clients}>
                     <div className={styles.marqueeTrack}>
                         {[0, 1].map((copy) => (
-                            <ul key={copy} aria-hidden={copy === 1 ? 'true' : undefined}>
+                            <ul key={copy} aria-hidden={copy === 1 ? 'true' : undefined} inert={copy === 1 ? true : undefined}>
                                 {profile.clients.map((client) => (
                                     <li key={client}>{client}</li>
                                 ))}
@@ -346,15 +391,15 @@ export default function PersonalSite({ lang }: { lang: Lang }) {
                 <section id="about" className={styles.section}>
                     <SectionLabel index={number('about')}>{t.sections.about}</SectionLabel>
                     <div className={styles.aboutHead}>
-                        <h2 className={`${styles.statement} ${styles.reveal}`}>
+                        <p className={`${styles.statement} ${styles.reveal}`}>
                             {t.statement[0]}
                             <em>{t.statement[1]}</em>
                             {t.statement[2]}
                             <em>{t.statement[3]}</em>
-                        </h2>
+                        </p>
                         <Portrait lang={lang} />
                     </div>
-                    <div className={`${styles.aboutGrid} ${styles.reveal}`}>
+                    <div className={styles.aboutGrid}>
                         {profile.about.map((paragraph) => (
                             <p key={paragraph.en.slice(0, 24)}>{tr(paragraph, lang)}</p>
                         ))}
@@ -373,7 +418,7 @@ export default function PersonalSite({ lang }: { lang: Lang }) {
                     <SectionLabel index={number('writing')}>{t.sections.writing}</SectionLabel>
                     <div className={`${styles.writingHead} ${styles.reveal}`}>
                         <div>
-                            <h2>{profile.newsletter.name}</h2>
+                            <h3>{profile.newsletter.name}</h3>
                             <p>
                                 {tr(profile.newsletter.text, lang)} {t.writtenIn}
                             </p>
@@ -385,7 +430,7 @@ export default function PersonalSite({ lang }: { lang: Lang }) {
                     {profile.newsletter.issues.length > 0 && (
                         <ul className={styles.issues}>
                             {profile.newsletter.issues.map((issue) => (
-                                <li key={issue.title} className={styles.reveal}>
+                                <li key={issue.title}>
                                     <a href={issue.url} target="_blank" rel="noreferrer" lang="pt" data-cursor={t.readCursor}>
                                         {issue.date ? <time dateTime={issue.date}>{formatDate(issue.date, lang)}</time> : <span aria-hidden="true" />}
                                         <span className={styles.issueMain}>
@@ -400,7 +445,7 @@ export default function PersonalSite({ lang }: { lang: Lang }) {
                             ))}
                         </ul>
                     )}
-                    <blockquote className={styles.reveal}>“{tr(profile.quote, lang)}”</blockquote>
+                    <blockquote>“{tr(profile.quote, lang)}”</blockquote>
                 </section>
 
                 <section id="speaking" className={styles.section}>
@@ -414,7 +459,7 @@ export default function PersonalSite({ lang }: { lang: Lang }) {
                     <h3 className={styles.subLabel}>{t.speakingTopics}</h3>
                     <ol className={styles.bring}>
                         {profile.speaking.topics.map((item) => (
-                            <li key={item.title.en} className={styles.reveal}>
+                            <li key={item.title.en}>
                                 <h3>{tr(item.title, lang)}</h3>
                                 <p>{tr(item.text, lang)}</p>
                             </li>
@@ -422,7 +467,7 @@ export default function PersonalSite({ lang }: { lang: Lang }) {
                     </ol>
                     <h3 className={styles.subLabel}>{t.speakingStages}</h3>
                     <div className={styles.recognition}>
-                        <ul className={styles.reveal}>
+                        <ul>
                             {profile.speaking.stages.map((item) => (
                                 <li key={item.title.en + item.year}>
                                     <span>{item.year}</span>
@@ -447,7 +492,7 @@ export default function PersonalSite({ lang }: { lang: Lang }) {
                             return (
                                 <article
                                     key={item.title}
-                                    className={`${styles.workCard} ${styles.reveal}`}
+                                    className={i === 0 ? `${styles.workCard} ${styles.reveal}` : styles.workCard}
                                     style={{ '--hue': item.hue } as React.CSSProperties}
                                 >
                                     {item.youtube ? (
@@ -484,9 +529,9 @@ export default function PersonalSite({ lang }: { lang: Lang }) {
 
                 <section id="bring" className={styles.section}>
                     <SectionLabel index={number('bring')}>{t.sections.bring}</SectionLabel>
-                    <ol className={styles.bring}>
+                    <ol className={`${styles.bring} ${styles.reveal}`}>
                         {profile.bring.map((item) => (
-                            <li key={item.title.en} className={styles.reveal}>
+                            <li key={item.title.en}>
                                 <h3>{tr(item.title, lang)}</h3>
                                 <p>{tr(item.text, lang)}</p>
                             </li>
@@ -496,20 +541,19 @@ export default function PersonalSite({ lang }: { lang: Lang }) {
 
                 <section id="path" className={styles.section}>
                     <SectionLabel index={number('path')}>{t.sections.path}</SectionLabel>
-                    <ul className={styles.path}>
+                    <ul className={`${styles.path} ${styles.reveal}`}>
                         {profile.experience.map((item) => (
-                            <li key={item.company + item.role.en} className={styles.reveal}>
+                            <li key={item.company + item.role.en}>
                                 <span className={styles.pathPeriod}>{tr(item.period, lang)}</span>
                                 <div className={styles.pathMain}>
-                                    <h3>
-                                        {item.url ? (
-                                            <a href={item.url} target="_blank" rel="noreferrer" className={styles.pathLink} data-cursor={t.visitCursor}>
-                                                {item.company} <span aria-hidden="true">↗</span>
-                                            </a>
-                                        ) : (
-                                            item.company
-                                        )}
-                                    </h3>
+                                    {item.url ? (
+                                        <a href={item.url} target="_blank" rel="noreferrer" className={styles.pathLink}>
+                                            <h3>{item.company}</h3>
+                                            <span aria-hidden="true">↗</span>
+                                        </a>
+                                    ) : (
+                                        <h3>{item.company}</h3>
+                                    )}
                                     <p className={styles.pathRole}>
                                         {tr(item.role, lang)} · {item.place}
                                     </p>
@@ -532,7 +576,7 @@ export default function PersonalSite({ lang }: { lang: Lang }) {
                                 </li>
                             ))}
                         </ul>
-                        <div className={`${styles.side} ${styles.reveal}`}>
+                        <div className={styles.side}>
                             <h3>{t.education}</h3>
                             {profile.education.map((item) => (
                                 <p key={item.school}>
@@ -553,10 +597,10 @@ export default function PersonalSite({ lang }: { lang: Lang }) {
                     </section>
                 )}
                 {profile.testimonials.length > 0 && (
-                    <QuoteLoop label={t.dragCursor}>
+                    <QuoteLoop label={t.dragCursor} name={t.sections.testimonials}>
                             {[0, 1].map((copy) =>
                                 profile.testimonials.map((item) => (
-                                    <figure key={`${copy}-${item.name}`} aria-hidden={copy === 1 ? 'true' : undefined}>
+                                    <figure key={`${copy}-${item.name}`} aria-hidden={copy === 1 ? 'true' : undefined} inert={copy === 1 ? true : undefined}>
                                         <blockquote lang="en">“{item.quote}”</blockquote>
                                         <figcaption>
                                             <strong>{item.name}</strong>
@@ -581,10 +625,10 @@ export default function PersonalSite({ lang }: { lang: Lang }) {
 
             <footer id="contact" className={styles.contact}>
                 <SectionLabel index={number('contact')}>{t.sections.contact}</SectionLabel>
-                <h2 className={styles.contactBig}>
+                <p className={styles.contactBig}>
                     {t.contactTitle[0]}
                     <em>{t.contactTitle[1]}</em>
-                </h2>
+                </p>
                 <ContactForm lang={lang} />
                 <div className={styles.contactRow}>
                     <a href={profile.links.linkedin} target="_blank" rel="noreferrer">

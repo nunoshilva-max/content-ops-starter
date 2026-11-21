@@ -5,7 +5,7 @@
     --line: rgba(242, 239, 233, 0.14);
     --accent: #cdff5c;
     --violet: #7a3df5;
-    --sans: 'Inter Tight', 'Inter', system-ui, sans-serif;
+    --sans: 'Inter Tight', system-ui, sans-serif;
     --serif: 'Instrument Serif', Georgia, serif;
     --gutter: clamp(16px, 4vw, 56px);
     background: var(--bg);
@@ -30,8 +30,11 @@
 }
 
 /* Cursor */
-.hasCursor,
-.hasCursor * {
+/* The custom cursor replaces the native one only over the hero and the work cards. */
+.hasCursor .hero,
+.hasCursor .hero *,
+.hasCursor .workCard,
+.hasCursor .workCard * {
     cursor: none !important;
 }
 
@@ -49,6 +52,12 @@
 
 .hasCursor .cursor {
     display: block;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.hasCursor .cursorActive {
+    opacity: 1;
 }
 
 .cursor::before {
@@ -90,6 +99,26 @@
     padding: 22px var(--gutter);
     mix-blend-mode: difference;
     color: #fff;
+    transition: transform 0.45s cubic-bezier(0.2, 0.9, 0.2, 1), background 0.3s, padding 0.3s;
+}
+
+/* Past the top of the page: a solid, blurred bar instead of blending into the content. */
+.navScrolled {
+    mix-blend-mode: normal;
+    background: rgba(7, 7, 10, 0.8);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+    padding-top: 14px;
+    padding-bottom: 14px;
+}
+
+.navHidden {
+    transform: translateY(-100%);
+}
+
+/* Never hide the bar while something in it has keyboard focus. */
+.navHidden:focus-within {
+    transform: none;
 }
 
 .logo {
@@ -362,8 +391,8 @@
 
 .reveal {
     opacity: 0;
-    transform: translateY(48px);
-    transition: opacity 1s cubic-bezier(0.2, 0.9, 0.2, 1), transform 1s cubic-bezier(0.2, 0.9, 0.2, 1);
+    transform: translateY(20px);
+    transition: opacity 0.55s cubic-bezier(0.2, 0.9, 0.2, 1), transform 0.55s cubic-bezier(0.2, 0.9, 0.2, 1);
 }
 
 .revealed {
@@ -470,16 +499,16 @@
 }
 
 .numbers div:nth-child(2) {
-    transition-delay: 0.08s;
+    transition-delay: 0.05s;
 }
 .numbers div:nth-child(3) {
-    transition-delay: 0.16s;
+    transition-delay: 0.1s;
 }
 .numbers div:nth-child(4) {
-    transition-delay: 0.24s;
+    transition-delay: 0.15s;
 }
 .numbers div:nth-child(5) {
-    transition-delay: 0.32s;
+    transition-delay: 0.2s;
 }
 
 .numbers dd {
@@ -784,6 +813,12 @@
     transition: color 0.3s;
 }
 
+.pathLink {
+    display: inline-flex;
+    align-items: flex-start;
+    gap: 6px;
+}
+
 .pathLink span {
     display: inline-block;
     font-size: 0.55em;
@@ -880,7 +915,7 @@
 }
 
 /* Writing */
-.writing h2 {
+.writingHead h3 {
     font-size: clamp(30px, 3.6vw, 56px);
     font-weight: 500;
     letter-spacing: -0.045em;
@@ -1503,6 +1538,12 @@
     color: var(--muted) !important;
 }
 
+/* Visible keyboard focus on every link, button and focusable control. */
+.site :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+}
+
 @media (prefers-reduced-motion: reduce) {
     .heroPhraseOn .heroLetter {
         animation: none;
@@ -1515,6 +1556,10 @@
     .reveal {
         opacity: 1;
         transform: none;
+        transition: none;
+    }
+    .nav {
+        transition: none;
     }
     .marqueeTrack,
     .writing blockquote::after,
