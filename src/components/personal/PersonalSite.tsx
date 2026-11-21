@@ -137,7 +137,8 @@ function YouTubeEmbed({ id, title, lang, children }: { id: string; title: string
         );
     }
     return (
-        <button type="button" className={styles.workArt} onClick={() => setPlaying(true)} aria-label={`${ui[lang].play} ${title}`} data-cursor={ui[lang].playCursor}>
+        <button type="button" className={styles.workArt} onClick={() => setPlaying(true)} data-cursor={ui[lang].playCursor}>
+            <span className={styles.srOnly}>{ui[lang].play}: </span>
             {children}
             <span className={styles.playIcon} aria-hidden="true" />
         </button>
@@ -167,7 +168,15 @@ function Portrait({ lang }: { lang: Lang }) {
                     </textPath>
                 </text>
             </svg>
-            <img ref={imgRef} src={profile.photo} alt={profile.name} className={styles.portraitPhoto} onError={() => setFailed(true)} />
+            <img
+                ref={imgRef}
+                src={profile.photo}
+                srcSet="/images/nuno-silva-300.jpg 300w, /images/nuno-silva-480.jpg 480w, /images/nuno-silva.jpg 720w"
+                sizes="(min-width: 1500px) 222px, max(134px, 14.8vw)"
+                width={720}
+                height={720}
+                decoding="async"
+                alt={profile.name} className={styles.portraitPhoto} onError={() => setFailed(true)} />
         </figure>
     );
 }
@@ -382,7 +391,7 @@ export default function PersonalSite({ lang }: { lang: Lang }) {
             <Cursor />
 
             <header className={navClass}>
-                <a href="#top" className={styles.logo} aria-label={profile.name}>
+                <a href="#top" className={styles.logo}>
                     nuno<span>·</span>silva
                 </a>
                 <nav className={styles.navLinks}>
@@ -401,7 +410,7 @@ export default function PersonalSite({ lang }: { lang: Lang }) {
 
             <main id="top">
                 <section className={styles.hero}>
-                    <FluidHero phrases={heroPhrases} hint={t.hint} readLabel={t.readEdition} />
+                    <FluidHero phrases={heroPhrases} hint={t.hint} readLabel={t.readEdition} readHref={profile.newsletter.url} />
                     <div className={styles.heroInner}>
                         <p className={styles.heroEyebrow}>{tr(profile.eyebrow, lang)}</p>
                         <h1 className={styles.heroTitle}>

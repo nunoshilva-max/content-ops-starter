@@ -12,6 +12,15 @@ try { if (localStorage.getItem('analytics-consent') === 'granted') consent = 'gr
 gtag('consent', 'default', { analytics_storage: consent, ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied' });
 gtag('js', new Date());
 gtag('config', '${GA_ID}');
+// Load the Google tag once the page has loaded, so it stays off the critical path.
+window.addEventListener('load', function () {
+    setTimeout(function () {
+        var s = document.createElement('script');
+        s.async = true;
+        s.src = 'https://www.googletagmanager.com/gtag/js?id=${GA_ID}';
+        document.head.appendChild(s);
+    }, 1500);
+});
 `;
 
 type Props = DocumentInitialProps & { lang: string };
@@ -29,7 +38,6 @@ export default class MyDocument extends Document<Props> {
             <Html lang={this.props.lang}>
                 <Head>
                     <script dangerouslySetInnerHTML={{ __html: GA_SETUP }} />
-                    <script async src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`} />
                 </Head>
                 <body>
                     <Main />

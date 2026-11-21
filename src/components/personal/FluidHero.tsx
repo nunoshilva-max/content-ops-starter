@@ -274,7 +274,7 @@ type Spray = {
     phase: number;
 };
 
-export default function FluidHero({ phrases, hint, readLabel }: { phrases: HeroPhrase[]; hint: string; readLabel: string }) {
+export default function FluidHero({ phrases, hint, readLabel, readHref }: { phrases: HeroPhrase[]; hint: string; readLabel: string; readHref: string }) {
     const canvasRef = React.useRef<HTMLCanvasElement>(null);
     const phraseRef = React.useRef<HTMLSpanElement>(null);
     const hintRef = React.useRef<HTMLSpanElement>(null);
@@ -834,7 +834,7 @@ export default function FluidHero({ phrases, hint, readLabel }: { phrases: HeroP
                 {hint}
             </span>
             {/* Under an MPGA title, a link to that edition. */}
-            <a ref={readRef} className={styles.heroRead} target="_blank" rel="noreferrer" tabIndex={-1}>
+            <a ref={readRef} href={readHref} className={styles.heroRead} target="_blank" rel="noreferrer" tabIndex={-1}>
                 {readLabel} <span aria-hidden="true">↗</span>
             </a>
         </>

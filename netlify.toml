@@ -38,3 +38,9 @@
   to = "/"
   status = 301
   force = true
+
+# Self-hosted fonts never change under the same name.
+[[headers]]
+  for = "/fonts/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"

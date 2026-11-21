@@ -47,9 +47,8 @@ export default function SiteHead({ lang, title, description, path }: { lang: Lan
             <link rel="icon" href="/favicon-nuno.svg" type="image/svg+xml" />
             <link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png" />
             <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-            <link rel="preconnect" href="https://fonts.googleapis.com" />
-            <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
-            <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@300;400;500;600&family=Instrument+Serif:ital@0;1&display=swap" />
+            <link rel="preload" href="/fonts/inter-tight-latin.woff2" as="font" type="font/woff2" crossOrigin="" />
+            <link rel="preload" href="/fonts/instrument-serif-normal-latin.woff2" as="font" type="font/woff2" crossOrigin="" />
             {path === '' && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(person) }} />}
         </Head>
     );
